@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Minted",
+    "slug": "minted",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "minted",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "lol.wavo.minted",
+      "buildNumber": "1"
+    },
+    "plugins": ["expo-router"],
+    "experiments": {"typedRoutes": false}
+  }
+}
