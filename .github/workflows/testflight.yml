@@ -1,0 +1,107 @@
+name: Ship Minted to TestFlight
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: minted-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    name: Build and submit iOS
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_ACCOUNT: ${{ secrets.EXPO_ACCOUNT }}
+      ASC_APP_ID: ${{ secrets.ASC_APP_ID }}
+      EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      EXPO_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      EXPO_APPLE_TEAM_TYPE: ${{ secrets.APPLE_TEAM_TYPE }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Check required secrets
+        shell: bash
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+          EXPO_TOKEN_CHECK: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for pair in \
+            "EXPO_TOKEN:$EXPO_TOKEN_CHECK" \
+            "EXPO_ACCOUNT:$EXPO_ACCOUNT" \
+            "ASC_APP_ID:$ASC_APP_ID" \
+            "ASC_KEY_ID:$EXPO_ASC_KEY_ID" \
+            "ASC_ISSUER_ID:$EXPO_ASC_ISSUER_ID" \
+            "APPLE_TEAM_ID:$EXPO_APPLE_TEAM_ID" \
+            "APPLE_TEAM_TYPE:$EXPO_APPLE_TEAM_TYPE" \
+            "ASC_API_KEY_P8:$ASC_API_KEY_P8"; do
+            name="${pair%%:*}"
+            value="${pair#*:}"
+            if [ -z "$value" ]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Link or create EAS project
+        run: eas project:init --account "$EXPO_ACCOUNT" --force --non-interactive
+
+      - name: Prepare App Store Connect API key
+        shell: bash
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${EXPO_ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_API_KEY_P8" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "EXPO_ASC_API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Configure TestFlight submission
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'eas.json';
+          const eas = JSON.parse(fs.readFileSync(path, 'utf8'));
+          eas.submit ??= {};
+          eas.submit.production ??= {};
+          eas.submit.production.ios = {
+            ...(eas.submit.production.ios || {}),
+            ascAppId: process.env.ASC_APP_ID,
+            ascApiKeyPath: process.env.EXPO_ASC_API_KEY_PATH,
+            ascApiKeyId: process.env.EXPO_ASC_KEY_ID,
+            ascApiKeyIssuerId: process.env.EXPO_ASC_ISSUER_ID
+          };
+          fs.writeFileSync(path, JSON.stringify(eas, null, 2) + '\n');
+          NODE
+
+      - name: Build and auto-submit to TestFlight
+        run: eas build --platform ios --profile production --auto-submit --non-interactive --wait
+
+      - name: Done
+        if: success()
+        run: echo "Minted was built and handed to App Store Connect/TestFlight."
