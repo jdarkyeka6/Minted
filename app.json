@@ -8,7 +8,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "lol.wavo.minted",
+      "bundleIdentifier": "com.jdarkyeka6.minted",
       "buildNumber": "1"
     },
     "plugins": ["expo-router"],
