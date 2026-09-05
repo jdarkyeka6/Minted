@@ -20,6 +20,7 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
 
     steps:
       - name: Checkout
@@ -86,10 +87,17 @@ jobs:
           mkdir -p "$HOME/.appstoreconnect/private_keys"
           cp "$KEY_PATH" "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
-      - name: Show Xcode project details
+      - name: Verify Xcode 26 SDK and show project details
+        shell: bash
         run: |
+          set -euo pipefail
           xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
+          SDK_VERSION="$(xcrun --sdk iphoneos --show-sdk-version)"
+          echo "iOS SDK: $SDK_VERSION"
+          case "$SDK_VERSION" in
+            26.*) ;;
+            *) echo "::error::TestFlight requires iOS 26 SDK or later, but this runner selected $SDK_VERSION"; exit 1 ;;
+          esac
           xcodebuild -workspace ios/Minted.xcworkspace -scheme Minted -showBuildSettings | head -n 80
 
       - name: Archive Minted without development signing
