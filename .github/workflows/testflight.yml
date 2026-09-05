@@ -25,30 +25,36 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
           cache-dependency-path: package.json
 
-      - name: Check required Apple secrets
+      - name: Normalize and check Apple secrets
         shell: bash
         env:
           ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
         run: |
           set -euo pipefail
+
+          CLEAN_TEAM_ID=$(printf '%s' "$APPLE_TEAM_ID" | tr -d '[:space:]')
+          CLEAN_KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d '[:space:]')
+          CLEAN_ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID" | tr -d '[:space:]')
+
           missing=0
-          for pair in \
-            "APPLE_TEAM_ID:$APPLE_TEAM_ID" \
-            "ASC_KEY_ID:$ASC_KEY_ID" \
-            "ASC_ISSUER_ID:$ASC_ISSUER_ID" \
-            "ASC_API_KEY_P8:$ASC_API_KEY_P8"; do
-            name="${pair%%:*}"
-            value="${pair#*:}"
-            if [ -z "$value" ]; then
-              echo "::error::Missing GitHub Actions secret: $name"
-              missing=1
-            fi
-          done
-          exit "$missing"
+          [ -n "$CLEAN_TEAM_ID" ] || { echo "::error::Missing GitHub Actions secret: APPLE_TEAM_ID"; missing=1; }
+          [ -n "$CLEAN_KEY_ID" ] || { echo "::error::Missing GitHub Actions secret: ASC_KEY_ID"; missing=1; }
+          [ -n "$CLEAN_ISSUER_ID" ] || { echo "::error::Missing GitHub Actions secret: ASC_ISSUER_ID"; missing=1; }
+          [ -n "$ASC_API_KEY_P8" ] || { echo "::error::Missing GitHub Actions secret: ASC_API_KEY_P8"; missing=1; }
+          [ "$missing" -eq 0 ] || exit 1
+
+          if [ ${#CLEAN_TEAM_ID} -ne 10 ]; then
+            echo "::error::APPLE_TEAM_ID should normally be 10 characters after whitespace is removed."
+            exit 1
+          fi
+
+          echo "APPLE_TEAM_ID=$CLEAN_TEAM_ID" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$CLEAN_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_ISSUER_ID=$CLEAN_ISSUER_ID" >> "$GITHUB_ENV"
 
       - name: Install JavaScript dependencies
         run: npm install
