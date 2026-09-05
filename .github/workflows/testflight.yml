@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: minted-testflight
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   testflight:
@@ -20,16 +20,10 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
-      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Verify Xcode 16.2
-        run: |
-          xcodebuild -version
-          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -93,7 +87,10 @@ jobs:
           cp "$KEY_PATH" "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
 
       - name: Show Xcode project details
-        run: xcodebuild -workspace ios/Minted.xcworkspace -scheme Minted -showBuildSettings | head -n 80
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcodebuild -workspace ios/Minted.xcworkspace -scheme Minted -showBuildSettings | head -n 80
 
       - name: Archive Minted without development signing
         shell: bash
@@ -157,7 +154,9 @@ jobs:
           echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
 
       - name: Upload to App Store Connect / TestFlight
+        shell: bash
         run: |
+          set -euo pipefail
           xcrun altool \
             --upload-app \
             --type ios \
