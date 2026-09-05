@@ -2,7 +2,7 @@
 
 **Start with $0. Build an empire.**
 
-Minted is an idle financial tycoon game built with Expo + React Native for iOS.
+Minted is an idle financial tycoon game built with React Native + Expo modules for iOS.
 
 ## Current navigation
 - Invest
@@ -25,7 +25,7 @@ Minted is an idle financial tycoon game built with Expo + React Native for iOS.
 ## iOS identity
 - App name: Minted
 - Bundle identifier: `com.jdarkyeka6.minted`
-- Build number starts at `1` and EAS production builds auto-increment
+- GitHub Actions run number is used as the iOS build number
 
 ## Run locally
 ```bash
@@ -33,32 +33,28 @@ npm install
 npx expo start
 ```
 
-## First-time EAS setup
-```bash
-npm install -g eas-cli
-eas login
-eas init
-```
+## TestFlight delivery
+Minted uses a direct GitHub Actions pipeline. No Expo/EAS account or EAS cloud build is required.
 
-`eas init` links this GitHub project to your Expo account and writes the EAS project ID into the Expo config.
+The manual workflow at `.github/workflows/testflight.yml` runs on a GitHub-hosted macOS machine and:
 
-## Build + upload to TestFlight
-The production profile in `eas.json` is configured for App Store/TestFlight distribution.
+1. Installs the JavaScript dependencies.
+2. Generates the native iOS project locally with Expo prebuild.
+3. Installs CocoaPods.
+4. Uses Xcode automatic signing with an App Store Connect API key.
+5. Archives and exports the signed `.ipa`.
+6. Uploads it directly to App Store Connect/TestFlight with Apple's `altool`.
 
-```bash
-eas build --platform ios --profile production --auto-submit
-```
+### Required GitHub Actions secrets
+Add these under **Settings → Secrets and variables → Actions**:
 
-On the first run, EAS will guide you through Apple Developer signing credentials and App Store Connect authentication. If you prefer to build and submit separately:
+- `APPLE_TEAM_ID`
+- `ASC_KEY_ID`
+- `ASC_ISSUER_ID`
+- `ASC_API_KEY_P8`
 
-```bash
-eas build --platform ios --profile production
-eas submit --platform ios --profile production
-```
+`ASC_API_KEY_P8` must contain the complete text contents of the App Store Connect API key `.p8` file.
 
-After Apple finishes processing the upload, open **App Store Connect → Minted → TestFlight** and enable the build for internal testing.
+After the secrets are configured, open **Actions → Ship Minted to TestFlight → Run workflow**.
 
-### Optional: pin the App Store Connect app ID
-Once you know Minted's numeric Apple ID from **App Store Connect → Minted → App Information**, add it to the `submit.production.ios.ascAppId` field in `eas.json`. This removes an app-selection prompt during submission.
-
-An active Apple Developer membership and App Store Connect access are required for the iOS/TestFlight submission.
+Apple still needs to process the uploaded build before it appears in TestFlight.
