@@ -1,0 +1,74 @@
+name: Retry Minted TestFlight upload
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/retry-testflight-upload.yml'
+
+jobs:
+  upload:
+    name: Retry existing IPA upload
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+
+    steps:
+      - name: Download signed IPA from build 8
+        uses: actions/download-artifact@v4
+        with:
+          name: minted-build-8
+          path: build
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: 33963625114
+
+      - name: Find signed IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          IPA_PATH=$(find "$PWD/build" -name '*.ipa' -print -quit)
+          if [ -z "$IPA_PATH" ]; then
+            echo "::error::No IPA found in build 8 artifact"
+            exit 1
+          fi
+          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
+          echo "Found IPA: $IPA_PATH"
+
+      - name: Prepare App Store Connect API key
+        shell: bash
+        env:
+          ASC_API_KEY_P8: ${{ secrets.ASC_API_KEY_P8 }}
+        run: |
+          set -euo pipefail
+          CLEAN_KEY_ID=$(printf '%s' "$ASC_KEY_ID" | tr -d '[:space:]')
+          CLEAN_ISSUER_ID=$(printf '%s' "$ASC_ISSUER_ID" | tr -d '[:space:]')
+          [ -n "$CLEAN_KEY_ID" ] || { echo "::error::Missing ASC_KEY_ID"; exit 1; }
+          [ -n "$CLEAN_ISSUER_ID" ] || { echo "::error::Missing ASC_ISSUER_ID"; exit 1; }
+          [ -n "$ASC_API_KEY_P8" ] || { echo "::error::Missing ASC_API_KEY_P8"; exit 1; }
+          echo "ASC_KEY_ID=$CLEAN_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_ISSUER_ID=$CLEAN_ISSUER_ID" >> "$GITHUB_ENV"
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "$ASC_API_KEY_P8" > "$HOME/.appstoreconnect/private_keys/AuthKey_${CLEAN_KEY_ID}.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${CLEAN_KEY_ID}.p8"
+
+      - name: Upload existing IPA and capture Apple response
+        shell: bash
+        run: |
+          set -o pipefail
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file "$IPA_PATH" \
+            --apiKey "$ASC_KEY_ID" \
+            --apiIssuer "$ASC_ISSUER_ID" \
+            2>&1 | tee "$PWD/appstore-upload.log"
+
+      - name: Save Apple upload response
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: minted-appstore-upload-diagnostic
+          path: appstore-upload.log
+          if-no-files-found: warn
