@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: minted-testflight
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   testflight:
@@ -20,10 +20,16 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      DEVELOPER_DIR: /Applications/Xcode_16.2.app/Contents/Developer
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Verify Xcode 16.2
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Setup Node
         uses: actions/setup-node@v6
