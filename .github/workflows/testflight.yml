@@ -2,6 +2,9 @@ name: Ship Minted to TestFlight
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 concurrency:
   group: minted-testflight
@@ -102,7 +105,7 @@ jobs:
             CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            archive
+            archive 2>&1 | tee "$PWD/build/xcode-archive.log"
 
       - name: Create export options
         shell: bash
@@ -154,13 +157,15 @@ jobs:
             --apiKey "$ASC_KEY_ID" \
             --apiIssuer "$ASC_ISSUER_ID"
 
-      - name: Upload IPA artifact
+      - name: Upload build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: minted-ios-${{ github.run_number }}
-          path: build/export/*.ipa
-          if-no-files-found: ignore
+          name: minted-build-${{ github.run_number }}
+          path: |
+            build/xcode-archive.log
+            build/export/*.ipa
+          if-no-files-found: warn
 
       - name: Done
         if: success()
