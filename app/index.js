@@ -34,7 +34,11 @@ const C = {
 const NAV = [
   ['Investing', '↗'],
   ['Business', '▥'],
-  ['Earnings', '
+  ['Earnings', '$'],
+  ['Work', '▣'],
+  ['Items', '◇'],
+  ['Profile', '●'],
+];
 
 const COLLECTIONS = [
   { id: 'style', title: 'Style', icon: '⌚', assetIds: ['sneakers', 'watch', 'jewels', 'rareCoin'] },
