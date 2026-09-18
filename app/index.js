@@ -7,6 +7,7 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -39,12 +40,13 @@ const NAV = [
 ];
 
 const COLLECTIONS = [
-  { id: 'style', title: 'Style', icon: '⌚', assetIds: ['sneakers', 'watch'] },
-  { id: 'cars', title: 'Garage', icon: '◉', assetIds: ['sportsCar', 'supercar'] },
-  { id: 'yachts', title: 'Harbor', icon: '≈', assetIds: ['yacht'] },
-  { id: 'aircraft', title: 'Hangar', icon: '✈', assetIds: ['jet'] },
-  { id: 'islands', title: 'Islands', icon: '⌁', assetIds: ['island'] },
-  { id: 'residence', title: 'Residence', icon: '⌂', assetIds: ['moon'] },
+  { id: 'style', title: 'Style', icon: '⌚', assetIds: ['sneakers', 'watch', 'jewels', 'rareCoin'] },
+  { id: 'cars', title: 'Garage', icon: '◉', assetIds: ['classicCar', 'sportsCar', 'supercar', 'prototypeCar'] },
+  { id: 'yachts', title: 'Harbor', icon: '≈', assetIds: ['speedboat', 'yacht', 'megayacht'] },
+  { id: 'aircraft', title: 'Hangar', icon: '✈', assetIds: ['propPlane', 'jet', 'airliner'] },
+  { id: 'collectibles', title: 'Collectibles', icon: '★', assetIds: ['painting', 'signature', 'meteorite', 'crown'] },
+  { id: 'islands', title: 'Islands', icon: '⌁', assetIds: ['tinyIsland', 'island', 'islandEstate'] },
+  { id: 'residence', title: 'Residence', icon: '⌂', assetIds: ['mansion', 'compound', 'moon'] },
 ];
 
 const compactMoney = (value, decimals = 1) => {
@@ -592,40 +594,122 @@ function Business({ game }) {
 }
 
 function StartBusinessModal({ open, game, onClose }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const [companyName, setCompanyName] = useState('');
+
+  const selected = game.businessCatalog.find((business) => business.id === selectedId) || null;
+
+  const resetAndClose = () => {
+    setSelectedId(null);
+    setCompanyName('');
+    onClose();
+  };
+
+  const choose = (business) => {
+    tapHaptic();
+    setSelectedId(business.id);
+    setCompanyName('');
+  };
+
+  const launch = () => {
+    if (!selected) return;
+    const name = companyName.trim();
+    if (name.length < 2 || game.balance < selected.cost) return;
+    const created = game.buyBusiness(selected.id, name);
+    if (created !== false) resetAndClose();
+  };
+
   return (
-    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={open} animationType="slide" onRequestClose={resetAndClose}>
       <SafeAreaView style={styles.safe}>
         <StatusBar barStyle="dark-content" />
-        <ScrollView contentContainerStyle={styles.modalPage}>
+        <ScrollView contentContainerStyle={styles.modalPage} keyboardShouldPersistTaps="handled">
           <View style={styles.modalPageTop}>
-            <Pressable onPress={onClose}><Text style={styles.backText}>‹</Text></Pressable>
-            <Text style={styles.modalPageTitle}>Choose a business</Text>
+            <Pressable onPress={() => selected ? setSelectedId(null) : resetAndClose()}>
+              <Text style={styles.backText}>‹</Text>
+            </Pressable>
+            <View style={styles.flex}>
+              <Text style={styles.modalPageTitle}>{selected ? 'Name your company' : 'Choose a business'}</Text>
+              {selected && <Text style={styles.modalPageSub}>{selected.name} · {selected.industry}</Text>}
+            </View>
           </View>
-          <Text style={styles.pageLead}>Pick a category. Bigger businesses unlock as your net worth grows.</Text>
 
-          <View style={styles.businessGrid}>
-            {game.businessCatalog.map((business) => {
-              const owned = game.businesses.some((x) => x.id === business.id);
-              return (
-                <Pressable
-                  key={business.id}
-                  disabled={!business.unlocked || owned || game.balance < business.cost}
-                  onPress={() => { tapHaptic(); game.buyBusiness(business.id); onClose(); }}
-                  style={({ pressed }) => [
-                    styles.businessGridCard,
-                    (!business.unlocked || owned) && styles.lockedCard,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <IconBubble tone="blue" size={58}>{business.icon}</IconBubble>
-                  <View style={styles.gridBottom}>
-                    <Text style={styles.gridTitle}>{business.name}</Text>
-                    <Text style={styles.gridSub}>{owned ? 'Owned' : business.unlocked ? 'From ' + compactMoney(business.cost, 1) : 'Locked'}</Text>
+          {!selected ? (
+            <>
+              <Text style={styles.pageLead}>Pick a category. You can own more than one company in the same industry.</Text>
+              <View style={styles.businessGrid}>
+                {game.businessCatalog.map((business) => (
+                  <Pressable
+                    key={business.id}
+                    disabled={!business.unlocked}
+                    onPress={() => choose(business)}
+                    style={({ pressed }) => [
+                      styles.businessGridCard,
+                      !business.unlocked && styles.lockedCard,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <IconBubble tone="blue" size={58}>{business.icon}</IconBubble>
+                    <View style={styles.gridBottom}>
+                      <Text style={styles.gridTitle}>{business.name}</Text>
+                      <Text style={styles.gridSub}>
+                        {business.unlocked ? 'From ' + compactMoney(business.cost, 1) : 'Locked'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <Card style={styles.businessLaunchCard}>
+                <View style={styles.row}>
+                  <IconBubble tone="blue" size={62}>{selected.icon}</IconBubble>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardTitle}>{selected.name}</Text>
+                    <Text style={styles.cardSub}>{selected.industry}</Text>
                   </View>
-                </Pressable>
-              );
-            })}
-          </View>
+                  <Text style={styles.launchCost}>{compactMoney(selected.cost, 1)}</Text>
+                </View>
+              </Card>
+
+              <Text style={styles.inputLabel}>Company name</Text>
+              <TextInput
+                value={companyName}
+                onChangeText={(value) => setCompanyName(value.slice(0, 28))}
+                placeholder="Enter a name"
+                placeholderTextColor={C.faint}
+                autoCapitalize="words"
+                autoCorrect={false}
+                returnKeyType="done"
+                maxLength={28}
+                style={styles.companyInput}
+              />
+
+              <View style={styles.companyMetaRow}>
+                <View style={styles.companyMetaCard}>
+                  <Text style={styles.companyMetaLabel}>STARTING INCOME</Text>
+                  <Text style={styles.companyMetaValue}>+{compactMoney(selected.baseIncome, 2)}/s</Text>
+                </View>
+                <View style={styles.companyMetaCard}>
+                  <Text style={styles.companyMetaLabel}>OPENING COST</Text>
+                  <Text style={styles.companyMetaValue}>{compactMoney(selected.cost, 1)}</Text>
+                </View>
+              </View>
+
+              <Text style={styles.nameHint}>
+                {companyName.trim().length >= 2
+                  ? companyName.trim() + ' will appear in My companies.'
+                  : 'Give the company a name to launch it.'}
+              </Text>
+
+              <Button
+                label={game.balance >= selected.cost ? 'Start company' : 'Need ' + compactMoney(selected.cost - game.balance, 1) + ' more'}
+                onPress={launch}
+                disabled={companyName.trim().length < 2 || game.balance < selected.cost}
+              />
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -985,6 +1069,16 @@ const styles = StyleSheet.create({
   gridBottom: { marginTop: 18 },
   gridTitle: { fontSize: 18, fontWeight: '850', color: C.text },
   gridSub: { marginTop: 5, fontSize: 14, color: C.muted },
+
+  businessLaunchCard: { backgroundColor: C.blueSoft, marginBottom: 22 },
+  launchCost: { fontSize: 19, color: C.text, fontWeight: '900' },
+  inputLabel: { color: C.muted, fontSize: 13, fontWeight: '800', marginBottom: 8, letterSpacing: 0.3 },
+  companyInput: { minHeight: 62, borderRadius: 18, paddingHorizontal: 18, backgroundColor: C.white, borderWidth: 1.5, borderColor: C.line, fontSize: 20, color: C.text, fontWeight: '750', marginBottom: 14 },
+  companyMetaRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  companyMetaCard: { flex: 1, borderRadius: 18, backgroundColor: C.card, padding: 15 },
+  companyMetaLabel: { color: C.muted, fontSize: 10, fontWeight: '850', letterSpacing: 0.8 },
+  companyMetaValue: { color: C.text, fontSize: 16, fontWeight: '900', marginTop: 5 },
+  nameHint: { color: C.muted, fontSize: 14, lineHeight: 20, marginBottom: 18 },
 
   showcaseRow: { flexDirection: 'row', gap: 9, marginBottom: 8 },
   showcaseCard: { flex: 1, marginBottom: 0, alignItems: 'center', paddingHorizontal: 8 },
