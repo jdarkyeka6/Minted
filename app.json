@@ -5,13 +5,17 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "minted",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.jdarkyeka6.minted",
       "buildNumber": "1"
     },
-    "plugins": ["expo-router"],
-    "experiments": {"typedRoutes": false}
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    }
   }
 }
