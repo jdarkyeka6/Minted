@@ -462,6 +462,7 @@ function Investing({ game }) {
             items={game.stocks}
             quantityKey="shares"
             tax={game.taxes.stocks}
+            balance={game.balance}
             onPayTax={() => game.payTax('stocks')}
             onOpen={(item) => setSelectedMarket({ type: 'stock', item })}
           />
@@ -489,7 +490,7 @@ function Investing({ game }) {
   );
 }
 
-function MarketSection({ title, value, items, quantityKey, onOpen, tax, onPayTax }) {
+function MarketSection({ title, value, items, quantityKey, onOpen, tax, onPayTax, balance }) {
   const [filter, setFilter] = useState('All');
   const sorted = useMemo(() => {
     const copy = [...items];
@@ -515,7 +516,7 @@ function MarketSection({ title, value, items, quantityKey, onOpen, tax, onPayTax
           title="Stock tax"
           incomeLabel="Dividend income"
           onPay={onPayTax}
-          balance={game.balance}
+          balance={balance}
         />
       )}
 
@@ -3258,19 +3259,6 @@ function Profile({ game }) {
           </View>
         ))}
       </Card>
-
-      {game.taxDue > 0 && (
-        <Card style={styles.taxCard}>
-          <View style={styles.row}>
-            <IconBubble tone="blue">⌂</IconBubble>
-            <View style={styles.flex}>
-              <Text style={styles.cardTitle}>Taxes</Text>
-              <Text style={styles.cardSub}>{compactMoney(game.taxDue, 2)} currently due</Text>
-            </View>
-            <Button small label="Pay" onPress={game.payTaxes} disabled={game.balance <= 0} />
-          </View>
-        </Card>
-      )}
 
       <SectionTitle title="Statistics" subtitle="The empire in numbers." />
       <Card style={styles.statsCard}>
