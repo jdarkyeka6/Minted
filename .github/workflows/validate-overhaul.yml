@@ -23,3 +23,5 @@ jobs:
         env:
           CI: 1
         run: npx expo export --platform ios --output-dir dist
+
+# validate current overhaul head
