@@ -28,6 +28,23 @@ const businessCatalogData = [
   { id: 'space', name: 'Space Company', icon: '🚀', industry: 'Aerospace', cost: 28000000000, baseIncome: 52000000, margin: 0.38, staff: 1800 },
 ];
 
+const acquisitionTargetData = [
+  { id: 'cobalt-corner', name: 'Cobalt Corner', typeId: 'shop', icon: '🛍️', industry: 'Retail', region: 'Perth', value: 18000, incomePerSec: 16, units: 3, level: 2, managerLevel: 1, employees: 14, reputation: 67, growth: 7 },
+  { id: 'swiftline-cabs', name: 'Swiftline Cabs', typeId: 'taxi', icon: '🚕', industry: 'Transport', region: 'Sydney', value: 52000, incomePerSec: 48, units: 5, level: 3, managerLevel: 1, employees: 31, reputation: 72, growth: 9 },
+  { id: 'harbor-haul', name: 'Harbor Haul', typeId: 'shipping', icon: '🚚', industry: 'Logistics', region: 'Fremantle', value: 165000, incomePerSec: 170, units: 7, level: 3, managerLevel: 2, employees: 74, reputation: 75, growth: 8 },
+  { id: 'ironvale-works', name: 'Ironvale Works', typeId: 'factory', icon: '🏭', industry: 'Manufacturing', region: 'Melbourne', value: 610000, incomePerSec: 720, units: 4, level: 5, managerLevel: 2, employees: 180, reputation: 71, growth: 12 },
+  { id: 'northspan-build', name: 'Northspan Build', typeId: 'construction', icon: '🏗️', industry: 'Construction', region: 'Brisbane', value: 1800000, incomePerSec: 2400, units: 6, level: 5, managerLevel: 3, employees: 310, reputation: 79, growth: 14 },
+  { id: 'apex-motors', name: 'Apex Motors', typeId: 'dealership', icon: '🚘', industry: 'Automotive', region: 'Gold Coast', value: 6200000, incomePerSec: 9800, units: 8, level: 6, managerLevel: 3, employees: 420, reputation: 83, growth: 16 },
+  { id: 'brightbyte', name: 'BrightByte', typeId: 'software', icon: '💻', industry: 'Technology', region: 'Singapore', value: 22000000, incomePerSec: 44000, units: 3, level: 8, managerLevel: 4, employees: 350, reputation: 88, growth: 24 },
+  { id: 'vanta-stays', name: 'Vanta Stays', typeId: 'hotel', icon: '🏨', industry: 'Hospitality', region: 'Tokyo', value: 78000000, incomePerSec: 145000, units: 12, level: 7, managerLevel: 5, employees: 1300, reputation: 86, growth: 15 },
+  { id: 'meridian-capital', name: 'Meridian Capital', typeId: 'bank', icon: '🏦', industry: 'Finance', region: 'London', value: 340000000, incomePerSec: 760000, units: 18, level: 9, managerLevel: 6, employees: 4200, reputation: 91, growth: 18 },
+  { id: 'vertex-athletics', name: 'Vertex Athletics', typeId: 'sports', icon: '🏟️', industry: 'Sport', region: 'Los Angeles', value: 1200000000, incomePerSec: 3200000, units: 9, level: 10, managerLevel: 6, employees: 5800, reputation: 94, growth: 20 },
+  { id: 'solstice-energy', name: 'Solstice Energy', typeId: 'energy', icon: '⛽️', industry: 'Energy', region: 'Dubai', value: 5200000000, incomePerSec: 15800000, units: 21, level: 12, managerLevel: 7, employees: 12400, reputation: 92, growth: 17 },
+  { id: 'altair-airways', name: 'Altair Airways', typeId: 'airline', icon: '✈️', industry: 'Aviation', region: 'Global', value: 21000000000, incomePerSec: 69000000, units: 30, level: 14, managerLevel: 8, employees: 39000, reputation: 95, growth: 21 },
+  { id: 'monolith-holdings', name: 'Monolith Holdings', typeId: 'holding', icon: '📊', industry: 'Investments', region: 'Global', value: 88000000000, incomePerSec: 360000000, units: 16, level: 16, managerLevel: 9, employees: 8400, reputation: 97, growth: 26 },
+  { id: 'zenith-orbital', name: 'Zenith Orbital', typeId: 'space', icon: '🚀', industry: 'Aerospace', region: 'Orbit', value: 420000000000, incomePerSec: 1900000000, units: 11, level: 18, managerLevel: 10, employees: 26000, reputation: 99, growth: 31 },
+];
+
 const propertyCatalogData = [
   { id: 'parking', name: 'Parking Space', location: 'Perth', icon: '🅿️', cost: 7500, rentPerSec: 0.55 },
   { id: 'studioFlat', name: 'Studio Apartment', location: 'Perth', icon: '🏢', cost: 42000, rentPerSec: 3.4 },
@@ -190,6 +207,9 @@ export function GameProvider({ children }) {
   const [totalClicks, setTotalClicks] = useState(0);
   const [clickTier, setClickTier] = useState(0);
   const [businesses, setBusinesses] = useState([]);
+  const [acquiredTargetIds, setAcquiredTargetIds] = useState([]);
+  const [acquisitionHistory, setAcquisitionHistory] = useState([]);
+  const [mergerCount, setMergerCount] = useState(0);
   const [properties, setProperties] = useState([]);
   const [assets, setAssets] = useState([]);
   const [residenceTier, setResidenceTier] = useState(-1);
@@ -266,6 +286,9 @@ export function GameProvider({ children }) {
           setTotalClicks(Number(save.totalClicks || 0));
           setClickTier(Math.min(Number(save.clickTier || 0), clickTiers.length - 1));
           setBusinesses(migratedBusinesses);
+          setAcquiredTargetIds(save.acquiredTargetIds || []);
+          setAcquisitionHistory(save.acquisitionHistory || []);
+          setMergerCount(Number(save.mergerCount || 0));
           setProperties(save.properties || []);
           setAssets((save.assets || []).filter((owned) => assetCatalogData.some((item) => item.id === owned.id)));
           setResidenceTier(Number.isFinite(Number(save.residenceTier)) ? Number(save.residenceTier) : -1);
@@ -358,6 +381,9 @@ export function GameProvider({ children }) {
           totalClicks,
           clickTier,
           businesses,
+          acquiredTargetIds,
+          acquisitionHistory,
+          mergerCount,
           properties,
           assets,
           residenceTier,
@@ -387,6 +413,9 @@ export function GameProvider({ children }) {
     totalClicks,
     clickTier,
     businesses,
+    acquiredTargetIds,
+    acquisitionHistory,
+    mergerCount,
     properties,
     assets,
     residenceTier,
@@ -444,6 +473,30 @@ export function GameProvider({ children }) {
     ...business,
     unlocked: index === 0 || netWorth >= business.cost * 0.22,
   }));
+  const acquisitionTargets = acquisitionTargetData.map((target) => {
+    const sameTypeCount = businesses.filter((business) => (business.typeId || business.id) === target.typeId).length;
+    const synergyPct = clamp(sameTypeCount * 0.05, 0, 0.30);
+    return {
+      ...target,
+      synergyPct,
+      projectedIncome: target.incomePerSec * (1 + synergyPct),
+      acquired: acquiredTargetIds.includes(target.id),
+      unlocked: netWorth >= target.value * 0.12,
+    };
+  });
+
+  const mergerGroups = businessCatalogData.map((base) => {
+    const companies = businesses.filter((business) => (business.typeId || business.id) === base.id);
+    return {
+      typeId: base.id,
+      name: base.name,
+      icon: base.icon,
+      industry: base.industry,
+      companies,
+      canMerge: companies.length >= 2,
+    };
+  }).filter((group) => group.companies.length >= 2);
+
   const propertyCatalog = propertyCatalogData.map((property, index) => ({
     ...property,
     unlocked: index === 0 || netWorth >= property.cost * 0.2,
@@ -479,6 +532,8 @@ export function GameProvider({ children }) {
     { id: '100k', title: 'Six figures', detail: 'Reach $100K net worth', reward: 20000, unlocked: netWorth >= 100000 },
     { id: 'million', title: 'Millionaire', detail: 'Reach $1M net worth', reward: 150000, unlocked: netWorth >= 1000000 },
     { id: 'mogul', title: 'Portfolio monster', detail: 'Own 5 businesses or properties', reward: 500000, unlocked: businesses.length + properties.length >= 5 },
+    { id: 'dealmaker', title: 'Deal maker', detail: 'Acquire a competitor', reward: 750000, unlocked: acquisitionHistory.length > 0 },
+    { id: 'merger', title: 'Consolidator', detail: 'Complete a company merger', reward: 1500000, unlocked: mergerCount > 0 },
     { id: 'billion', title: 'Billion club', detail: 'Reach $1B net worth', reward: 25000000, unlocked: netWorth >= 1000000000 },
   ].map((achievement) => ({
     ...achievement,
@@ -570,6 +625,75 @@ export function GameProvider({ children }) {
       managerCost: Math.ceil(managerCost * 2.7),
     } : business));
     addActivityItem(setActivity, `${owned.name} hired a stronger management team.`, 'upgrade');
+  };
+
+  const acquireTarget = (id) => {
+    const target = acquisitionTargets.find((item) => item.id === id);
+    const base = businessCatalogData.find((item) => item.id === target?.typeId);
+    if (!target || !base || target.acquired || !target.unlocked || !spend(target.value)) return false;
+
+    const companyId = `${target.typeId}-acq-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const projectedIncome = target.projectedIncome;
+    setBusinesses((items) => [...items, {
+      id: companyId,
+      typeId: target.typeId,
+      name: target.name,
+      icon: target.icon,
+      industry: target.industry,
+      units: target.units,
+      level: target.level,
+      multiplier: Math.max(1, projectedIncome / Math.max(0.01, base.baseIncome * target.units)),
+      managerLevel: target.managerLevel,
+      incomePerSec: projectedIncome,
+      unitCost: Math.ceil(base.cost * 0.85 * Math.max(1, target.units * 0.35)),
+      upgradeCost: Math.ceil(target.value * 0.22),
+      managerCost: Math.ceil(target.value * 0.31),
+      value: target.value,
+      acquiredFrom: target.id,
+    }]);
+    setAcquiredTargetIds((items) => [...items, target.id]);
+    setAcquisitionHistory((items) => [{
+      id: `${target.id}-${Date.now()}`,
+      targetId: target.id,
+      name: target.name,
+      price: target.value,
+      projectedIncome,
+      synergyPct: target.synergyPct,
+      at: Date.now(),
+    }, ...items].slice(0, 30));
+    addActivityItem(setActivity, `${target.name} acquired for $${Math.round(target.value).toLocaleString()}.`, 'business');
+    return true;
+  };
+
+  const mergeBusinesses = (typeId) => {
+    const candidates = businesses.filter((business) => (business.typeId || business.id) === typeId);
+    if (candidates.length < 2) return false;
+    const primary = candidates[0];
+    const secondary = candidates[1];
+    const mergedIncome = (primary.incomePerSec + secondary.incomePerSec) * 1.12;
+    const mergedValue = (primary.value || 0) + (secondary.value || 0);
+    const mergedName = primary.name.endsWith(' Group') ? primary.name : `${primary.name} Group`;
+
+    setBusinesses((items) => items
+      .filter((business) => business.id !== secondary.id)
+      .map((business) => business.id === primary.id ? {
+        ...business,
+        name: mergedName,
+        units: (primary.units || 1) + (secondary.units || 1),
+        level: Math.max(primary.level || 1, secondary.level || 1) + 1,
+        managerLevel: Math.max(primary.managerLevel || 0, secondary.managerLevel || 0),
+        multiplier: Math.max(primary.multiplier || 1, secondary.multiplier || 1) * 1.08,
+        incomePerSec: mergedIncome,
+        value: mergedValue,
+        unitCost: Math.ceil(Math.max(primary.unitCost || 0, secondary.unitCost || 0) * 1.2),
+        upgradeCost: Math.ceil(Math.max(primary.upgradeCost || 0, secondary.upgradeCost || 0) * 1.25),
+        managerCost: Math.ceil(Math.max(primary.managerCost || 0, secondary.managerCost || 0) * 1.2),
+        mergerCount: (primary.mergerCount || 0) + (secondary.mergerCount || 0) + 1,
+      } : business));
+
+    setMergerCount((value) => value + 1);
+    addActivityItem(setActivity, `${primary.name} merged with ${secondary.name}. Income jumped 12% from synergies.`, 'business');
+    return true;
   };
 
   const buyProperty = (id) => {
@@ -757,6 +881,10 @@ export function GameProvider({ children }) {
       dividendIncomePerSec,
       businesses,
       businessCatalog,
+      acquisitionTargets,
+      acquisitionHistory,
+      mergerGroups,
+      mergerCount,
       properties,
       propertyCatalog,
       assets,
@@ -800,6 +928,8 @@ export function GameProvider({ children }) {
       expandBusiness,
       upgradeBusiness,
       hireManager,
+      acquireTarget,
+      mergeBusinesses,
       buyProperty,
       buyAsset,
       buyResidenceTier,
