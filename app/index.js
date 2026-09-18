@@ -362,7 +362,17 @@ function Investing({ game }) {
 }
 
 function MarketSection({ title, value, items, quantityKey, onOpen }) {
+  const [filter, setFilter] = useState('All');
+  const sorted = useMemo(() => {
+    const copy = [...items];
+    if (filter === 'Gainers') return copy.filter((item) => item.changePct >= 0).sort((a, b) => b.changePct - a.changePct);
+    if (filter === 'Losers') return copy.filter((item) => item.changePct < 0).sort((a, b) => a.changePct - b.changePct);
+    if (filter === 'Owned') return copy.filter((item) => (item[quantityKey] || 0) > 0).sort((a, b) => (b[quantityKey] || 0) * b.price - (a[quantityKey] || 0) * a.price);
+    return copy;
+  }, [items, filter, quantityKey]);
+
   const gainers = [...items].sort((a, b) => b.changePct - a.changePct);
+
   return (
     <>
       <Card style={styles.portfolioHero}>
@@ -371,8 +381,20 @@ function MarketSection({ title, value, items, quantityKey, onOpen }) {
         <Text style={styles.portfolioHeroSub}>Live simulated market value</Text>
       </Card>
 
-      <SectionTitle title="Market" subtitle="Tap an asset to trade." />
-      {items.map((item) => {
+      <View style={styles.marketFilters}>
+        {['All', 'Gainers', 'Losers', 'Owned'].map((item) => (
+          <Pressable
+            key={item}
+            onPress={() => { tapHaptic(); setFilter(item); }}
+            style={[styles.marketFilterPill, filter === item && styles.marketFilterPillActive]}
+          >
+            <Text style={[styles.marketFilterText, filter === item && styles.marketFilterTextActive]}>{item}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      <SectionTitle title="Market" subtitle={filter === 'All' ? 'Tap an asset to trade.' : filter + ' · ' + sorted.length + ' assets'} />
+      {sorted.length ? sorted.map((item) => {
         const positive = item.changePct >= 0;
         const qty = item[quantityKey] || 0;
         return (
@@ -392,7 +414,9 @@ function MarketSection({ title, value, items, quantityKey, onOpen }) {
             </View>
           </Card>
         );
-      })}
+      }) : (
+        <Card><Text style={styles.emptyFilterText}>Nothing in this filter yet.</Text></Card>
+      )}
 
       <SectionTitle title="Watchlist" subtitle="Fastest movers right now." />
       <View style={styles.twoCol}>
@@ -1115,6 +1139,33 @@ function Profile({ game }) {
         ))}
       </View>
 
+      <View style={styles.profileProgressRow}>
+        <Card style={styles.profileProgressCard}>
+          <Text style={styles.miniEyebrow}>RANK</Text>
+          <Text style={styles.progressCardTitle}>{game.rank.name}</Text>
+          {game.nextRank ? (
+            <>
+              <View style={styles.slimTrack}><View style={[styles.slimFill, { width: (game.rankProgress * 100) + '%' }]} /></View>
+              <Text style={styles.progressCardSub}>{Math.floor(game.rankProgress * 100)}% to {game.nextRank.name}</Text>
+            </>
+          ) : (
+            <Text style={styles.progressCardSub}>Maximum rank reached</Text>
+          )}
+        </Card>
+
+        <Card style={[styles.profileProgressCard, game.dailyAvailable && styles.dailyProfileReady]}>
+          <Text style={styles.miniEyebrow}>DAILY CASH</Text>
+          <Text style={styles.progressCardTitle}>Day {Math.max(1, game.dailyStreak + (game.dailyAvailable ? 1 : 0))}</Text>
+          <Text style={styles.progressCardSub}>{game.dailyAvailable ? compactMoney(game.dailyReward, 1) + ' ready' : 'Come back tomorrow'}</Text>
+          <Button
+            small
+            label={game.dailyAvailable ? 'Claim' : 'Claimed'}
+            onPress={game.claimDaily}
+            disabled={!game.dailyAvailable}
+          />
+        </Card>
+      </View>
+
       <SectionTitle title="Rich list" subtitle={'You are #' + yourRichRank + ' in this simulated world.'} />
       <Card style={styles.richListCard}>
         {richList.slice(0, 6).map((person, index) => (
@@ -1288,6 +1339,13 @@ const styles = StyleSheet.create({
   portfolioHero: { backgroundColor: C.blueSoft, paddingVertical: 22 },
   portfolioHeroValue: { fontSize: 34, fontWeight: '900', color: C.text, letterSpacing: -1, marginTop: 8 },
   portfolioHeroSub: { fontSize: 14, color: C.muted, marginTop: 5 },
+  marketFilters: { flexDirection: 'row', gap: 7, marginBottom: 4 },
+  marketFilterPill: { flex: 1, minHeight: 38, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
+  marketFilterPillActive: { backgroundColor: C.mint },
+  marketFilterText: { fontSize: 12, color: C.muted, fontWeight: '800' },
+  marketFilterTextActive: { color: C.white },
+  emptyFilterText: { color: C.muted, textAlign: 'center', fontSize: 14 },
+
   marketRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   marketPrice: { fontSize: 17, fontWeight: '850', color: C.text },
   marketChange: { fontSize: 13, marginTop: 3 },
@@ -1418,6 +1476,14 @@ const styles = StyleSheet.create({
   profileMetricStripe: { width: 11 },
   profileMetricLabel: { color: C.muted, fontSize: 13, marginTop: 13, marginLeft: 12 },
   profileMetricValue: { color: C.text, fontSize: 17, fontWeight: '850', marginTop: 4, marginLeft: 12 },
+  profileProgressRow: { flexDirection: 'row', gap: 10, marginTop: 20 },
+  profileProgressCard: { flex: 1, marginBottom: 0, minHeight: 155 },
+  dailyProfileReady: { backgroundColor: C.mintSoft },
+  progressCardTitle: { fontSize: 21, color: C.text, fontWeight: '900', marginTop: 7 },
+  progressCardSub: { fontSize: 12, color: C.muted, marginTop: 8, marginBottom: 10 },
+  slimTrack: { height: 7, borderRadius: 5, overflow: 'hidden', backgroundColor: '#DCE3E5', marginTop: 13 },
+  slimFill: { height: '100%', borderRadius: 5, backgroundColor: C.mint },
+
   richListCard: { paddingVertical: 6 },
   richListRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE1E5', paddingHorizontal: 4 },
   richListYou: { backgroundColor: C.mintSoft, marginHorizontal: -10, paddingHorizontal: 14, borderRadius: 14, borderBottomWidth: 0 },
