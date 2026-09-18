@@ -531,6 +531,7 @@ function RealEstate({ game }) {
 
 function Business({ game }) {
   const [startOpen, setStartOpen] = useState(false);
+  const [selectedBusinessId, setSelectedBusinessId] = useState(null);
 
   return (
     <>
@@ -556,7 +557,7 @@ function Business({ game }) {
           <Button label="Mergers" secondary onPress={() => {}} disabled />
         </View>
 
-        <SectionTitle title="My companies" subtitle={game.businesses.length ? 'Tap upgrades to grow each company.' : 'Start your first company.'} />
+        <SectionTitle title="My companies" subtitle={game.businesses.length ? 'Open a company to manage it.' : 'Start your first company.'} />
         {game.businesses.map((business) => {
           const details = game.getBusinessDetails(business.id);
           return (
@@ -567,7 +568,9 @@ function Business({ game }) {
                   <Text style={styles.cardTitle}>{business.name}</Text>
                   <Text style={styles.cardSub}>{business.industry}</Text>
                 </View>
-                <Text style={styles.chevron}>›</Text>
+                <Pressable onPress={() => { tapHaptic(); setSelectedBusinessId(business.id); }} style={styles.chevronButton}>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
               </View>
 
               <View style={styles.miniStatsRow}>
@@ -577,18 +580,113 @@ function Business({ game }) {
               </View>
 
               <Text style={styles.businessCardIncome}>{compactMoney(business.incomePerSec, 2)} <Text style={styles.businessCardSuffix}>per sec</Text></Text>
-
-              <View style={styles.businessActions}>
-                <Button small secondary label={'Expand · ' + compactMoney(business.unitCost, 1)} onPress={() => game.expandBusiness(business.id)} disabled={game.balance < business.unitCost} />
-                <Button small secondary label={'Upgrade · ' + compactMoney(business.upgradeCost, 1)} onPress={() => game.upgradeBusiness(business.id)} disabled={game.balance < business.upgradeCost} />
-              </View>
             </Card>
           );
         })}
       </ScrollView>
 
       <StartBusinessModal open={startOpen} game={game} onClose={() => setStartOpen(false)} />
+      <BusinessDetailModal
+        businessId={selectedBusinessId}
+        game={game}
+        onClose={() => setSelectedBusinessId(null)}
+      />
     </>
+  );
+}
+
+function BusinessDetailModal({ businessId, game, onClose }) {
+  if (!businessId) return null;
+  const business = game.businesses.find((item) => item.id === businessId);
+  if (!business) return null;
+  const details = game.getBusinessDetails(business.id);
+
+  return (
+    <Modal visible animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView contentContainerStyle={styles.modalPage}>
+          <View style={styles.modalPageTop}>
+            <Pressable onPress={onClose}><Text style={styles.backText}>‹</Text></Pressable>
+            <View style={styles.flex}>
+              <Text style={styles.modalPageTitle}>{business.name}</Text>
+              <Text style={styles.modalPageSub}>{business.industry}</Text>
+            </View>
+          </View>
+
+          <View style={styles.companyHero}>
+            <IconBubble tone="blue" size={78}>{business.icon}</IconBubble>
+            <Text style={styles.companyHeroIncome}>+{compactMoney(business.incomePerSec, 2)}/s</Text>
+            <Text style={styles.companyHeroLabel}>current company profit</Text>
+          </View>
+
+          <View style={styles.companyStatGrid}>
+            <Stat label="REVENUE / SEC" value={compactMoney(details?.revenuePerSec || 0, 2)} />
+            <Stat label="EXPENSES / SEC" value={compactMoney(details?.expensesPerSec || 0, 2)} />
+            <Stat label="EMPLOYEES" value={(details?.employees || 0).toLocaleString()} />
+            <Stat label="REPUTATION" value={Math.round(details?.reputation || 0) + '/100'} />
+            <Stat label="LOCATIONS" value={business.units.toLocaleString()} />
+            <Stat label="LEVEL" value={business.level.toLocaleString()} />
+          </View>
+
+          <SectionTitle title="Grow the company" subtitle="Each path improves a different part of the machine." />
+
+          <Card>
+            <View style={styles.row}>
+              <IconBubble tone="mint">＋</IconBubble>
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>Expand locations</Text>
+                <Text style={styles.cardSub}>Add another location and increase output.</Text>
+              </View>
+              <Button
+                small
+                label={compactMoney(business.unitCost, 1)}
+                onPress={() => game.expandBusiness(business.id)}
+                disabled={game.balance < business.unitCost}
+              />
+            </View>
+          </Card>
+
+          <Card>
+            <View style={styles.row}>
+              <IconBubble tone="blue">↑</IconBubble>
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>Operations upgrade</Text>
+                <Text style={styles.cardSub}>Level {business.level} · improves income by 35%.</Text>
+              </View>
+              <Button
+                small
+                label={compactMoney(business.upgradeCost, 1)}
+                onPress={() => game.upgradeBusiness(business.id)}
+                disabled={game.balance < business.upgradeCost}
+              />
+            </View>
+          </Card>
+
+          <Card>
+            <View style={styles.row}>
+              <IconBubble tone="gold">★</IconBubble>
+              <View style={styles.flex}>
+                <Text style={styles.cardTitle}>Management team</Text>
+                <Text style={styles.cardSub}>Level {business.managerLevel || 0} · improves income and reputation.</Text>
+              </View>
+              <Button
+                small
+                label={compactMoney(business.managerCost, 1)}
+                onPress={() => game.hireManager(business.id)}
+                disabled={game.balance < business.managerCost}
+              />
+            </View>
+          </Card>
+
+          <SectionTitle title="Company value" />
+          <Card style={styles.companyValueCard}>
+            <Text style={styles.companyValueNumber}>{compactMoney(business.value, 2)}</Text>
+            <Text style={styles.cardSub}>Capital invested into this company.</Text>
+          </Card>
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -1200,6 +1298,14 @@ const styles = StyleSheet.create({
   summaryLine: { height: StyleSheet.hairlineWidth, backgroundColor: '#D4DADF', marginVertical: 16 },
   slotPill: { backgroundColor: C.blueSoft, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 },
   slotPillText: { color: C.blue, fontSize: 12, fontWeight: '800' },
+  chevronButton: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
+  companyHero: { minHeight: 210, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: C.blueSoft, marginBottom: 14 },
+  companyHeroIncome: { fontSize: 33, fontWeight: '900', color: C.text, marginTop: 16 },
+  companyHeroLabel: { fontSize: 13, color: C.muted, marginTop: 3 },
+  companyStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  companyValueCard: { backgroundColor: C.mintSoft },
+  companyValueNumber: { fontSize: 31, fontWeight: '900', color: C.text },
+
   businessCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   miniStatsRow: { flexDirection: 'row', gap: 14, marginTop: 15 },
   miniStat: { color: C.faint, fontSize: 12, fontWeight: '700' },
