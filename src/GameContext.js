@@ -66,10 +66,6 @@ const assetCatalogData = [
   { id: 'island', name: 'Private Island', icon: '🌊', category: 'islands', cost: 550000000, prestige: 5000 },
   { id: 'islandEstate', name: 'Island Estate', icon: '🌴', category: 'islands', cost: 6200000000, prestige: 48000 },
 
-  { id: 'mansion', name: 'Estate Residence', icon: '🏰', category: 'residence', cost: 120000000, prestige: 1800 },
-  { id: 'compound', name: 'Private Compound', icon: '🏯', category: 'residence', cost: 1600000000, prestige: 13000 },
-  { id: 'moon', name: 'Lunar Residence', icon: '🌕', category: 'residence', cost: 9000000000, prestige: 35000 },
-
   { id: 'painting', name: 'Masterwork Painting', icon: '🖼️', category: 'collectibles', cost: 450000, prestige: 95 },
   { id: 'signature', name: 'Historic Signature', icon: '✍️', category: 'collectibles', cost: 5000000, prestige: 700 },
   { id: 'meteorite', name: 'Meteorite Fragment', icon: '☄️', category: 'collectibles', cost: 42000000, prestige: 3500 },
