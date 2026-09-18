@@ -48,6 +48,17 @@ const COLLECTIONS = [
   { id: 'islands', title: 'Islands', icon: '⌁', assetIds: ['tinyIsland', 'island', 'islandEstate'] },
 ];
 
+const RICH_LIST = [
+  { name: 'Avery Vale', industry: 'Technology', fortune: 42000000000000 },
+  { name: 'Mika Stone', industry: 'Energy', fortune: 17800000000000 },
+  { name: 'Theo Mercer', industry: 'Finance', fortune: 6400000000000 },
+  { name: 'Nora Chen', industry: 'Retail', fortune: 2100000000000 },
+  { name: 'Rafi Cole', industry: 'Aviation', fortune: 780000000000 },
+  { name: 'Elena North', industry: 'Property', fortune: 260000000000 },
+  { name: 'Miles Arden', industry: 'Technology', fortune: 88000000000 },
+  { name: 'Sofia Venn', industry: 'Hospitality', fortune: 24000000000 },
+];
+
 const compactMoney = (value, decimals = 1) => {
   const n = Number(value || 0);
   const sign = n < 0 ? '-' : '';
@@ -1070,6 +1081,9 @@ function Profile({ game }) {
     ['Residence', game.residenceValue, '#236B9A'],
   ];
   const total = Math.max(1, portfolio.reduce((s, x) => s + Math.max(0, x[1]), 0));
+  const richList = [...RICH_LIST, { name: 'You', industry: game.rank.name, fortune: game.netWorth, you: true }]
+    .sort((a, b) => b.fortune - a.fortune);
+  const yourRichRank = richList.findIndex((item) => item.you) + 1;
 
   return (
     <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -1100,6 +1114,23 @@ function Profile({ game }) {
           </View>
         ))}
       </View>
+
+      <SectionTitle title="Rich list" subtitle={'You are #' + yourRichRank + ' in this simulated world.'} />
+      <Card style={styles.richListCard}>
+        {richList.slice(0, 6).map((person, index) => (
+          <View key={person.name} style={[styles.richListRow, index === Math.min(5, richList.length - 1) && styles.noBorder, person.you && styles.richListYou]}>
+            <Text style={styles.richListRank}>{index + 1}</Text>
+            <View style={[styles.richAvatar, person.you && styles.richAvatarYou]}>
+              <Text style={[styles.richAvatarText, person.you && styles.richAvatarTextYou]}>{person.you ? 'Y' : person.name[0]}</Text>
+            </View>
+            <View style={styles.flex}>
+              <Text style={[styles.richName, person.you && styles.richNameYou]}>{person.name}</Text>
+              <Text style={styles.richIndustry}>{person.industry}</Text>
+            </View>
+            <Text style={styles.richFortune}>{compactMoney(person.fortune, 1)}</Text>
+          </View>
+        ))}
+      </Card>
 
       {game.taxDue > 0 && (
         <Card style={styles.taxCard}>
@@ -1387,6 +1418,19 @@ const styles = StyleSheet.create({
   profileMetricStripe: { width: 11 },
   profileMetricLabel: { color: C.muted, fontSize: 13, marginTop: 13, marginLeft: 12 },
   profileMetricValue: { color: C.text, fontSize: 17, fontWeight: '850', marginTop: 4, marginLeft: 12 },
+  richListCard: { paddingVertical: 6 },
+  richListRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE1E5', paddingHorizontal: 4 },
+  richListYou: { backgroundColor: C.mintSoft, marginHorizontal: -10, paddingHorizontal: 14, borderRadius: 14, borderBottomWidth: 0 },
+  richListRank: { width: 20, fontSize: 14, color: C.muted, fontWeight: '800' },
+  richAvatar: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.blueSoft, alignItems: 'center', justifyContent: 'center' },
+  richAvatarYou: { backgroundColor: C.mint },
+  richAvatarText: { color: C.blue, fontWeight: '900' },
+  richAvatarTextYou: { color: C.white },
+  richName: { fontSize: 15, color: C.text, fontWeight: '800' },
+  richNameYou: { color: '#0E6A51' },
+  richIndustry: { fontSize: 12, color: C.muted, marginTop: 2 },
+  richFortune: { fontSize: 14, color: C.text, fontWeight: '900' },
+
   taxCard: { marginTop: 26, backgroundColor: C.blueSoft },
   statsCard: { paddingVertical: 6 },
   profileStat: { minHeight: 49, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE1E5' },
