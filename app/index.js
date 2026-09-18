@@ -566,6 +566,7 @@ function RealEstate({ game }) {
 
 function Business({ game }) {
   const [startOpen, setStartOpen] = useState(false);
+  const [dealsOpen, setDealsOpen] = useState(false);
   const [selectedBusinessId, setSelectedBusinessId] = useState(null);
 
   return (
@@ -589,7 +590,7 @@ function Business({ game }) {
 
         <View style={styles.actionRow}>
           <Button label="Start a business" onPress={() => setStartOpen(true)} />
-          <Button label="Mergers" secondary onPress={() => {}} disabled />
+          <Button label="M&A" secondary onPress={() => setDealsOpen(true)} />
         </View>
 
         <SectionTitle title="My companies" subtitle={game.businesses.length ? 'Open a company to manage it.' : 'Start your first company.'} />
@@ -621,12 +622,205 @@ function Business({ game }) {
       </ScrollView>
 
       <StartBusinessModal open={startOpen} game={game} onClose={() => setStartOpen(false)} />
+      <MergersModal open={dealsOpen} game={game} onClose={() => setDealsOpen(false)} />
       <BusinessDetailModal
         businessId={selectedBusinessId}
         game={game}
         onClose={() => setSelectedBusinessId(null)}
       />
     </>
+  );
+}
+
+function MergersModal({ open, game, onClose }) {
+  const [mode, setMode] = useState('Acquire');
+  if (!open) return null;
+
+  const targets = game.acquisitionTargets.filter((target) => !target.acquired);
+  const completedDeals = game.acquisitionHistory.length;
+
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView contentContainerStyle={styles.modalPage}>
+          <View style={styles.modalPageTop}>
+            <Pressable onPress={onClose}><Text style={styles.backText}>‹</Text></Pressable>
+            <View style={styles.flex}>
+              <Text style={styles.modalPageTitle}>Mergers & acquisitions</Text>
+              <Text style={styles.modalPageSub}>{completedDeals} acquisition{completedDeals === 1 ? '' : 's'} · {game.mergerCount} merger{game.mergerCount === 1 ? '' : 's'}</Text>
+            </View>
+          </View>
+
+          <Card style={styles.dealHero}>
+            <Text style={styles.dealHeroKicker}>DEAL DESK</Text>
+            <Text style={styles.dealHeroMoney}>{compactMoney(game.balance, 2)}</Text>
+            <Text style={styles.dealHeroSub}>cash available for acquisitions</Text>
+            <View style={styles.dealHeroStats}>
+              <View>
+                <Text style={styles.dealHeroStatLabel}>TARGETS</Text>
+                <Text style={styles.dealHeroStatValue}>{targets.length}</Text>
+              </View>
+              <View>
+                <Text style={styles.dealHeroStatLabel}>MERGE READY</Text>
+                <Text style={styles.dealHeroStatValue}>{game.mergerGroups.length}</Text>
+              </View>
+              <View>
+                <Text style={styles.dealHeroStatLabel}>DEALS DONE</Text>
+                <Text style={styles.dealHeroStatValue}>{completedDeals + game.mergerCount}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <View style={styles.dealTabs}>
+            {['Acquire', 'Merge'].map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => { tapHaptic(); setMode(item); }}
+                style={[styles.dealTab, mode === item && styles.dealTabActive]}
+              >
+                <Text style={[styles.dealTabText, mode === item && styles.dealTabTextActive]}>{item}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {mode === 'Acquire' ? (
+            <>
+              <SectionTitle title="Acquisition targets" subtitle="Buy established companies instead of starting from zero." />
+              {targets.map((target) => {
+                const canAfford = game.balance >= target.value;
+                const unlockWorth = target.value * 0.12;
+                return (
+                  <Card key={target.id} style={!target.unlocked && styles.lockedCard}>
+                    <View style={styles.dealTargetTop}>
+                      <IconBubble tone={target.unlocked ? 'blue' : 'gold'} size={58}>{target.icon}</IconBubble>
+                      <View style={styles.flex}>
+                        <Text style={styles.cardTitle}>{target.name}</Text>
+                        <Text style={styles.cardSub}>{target.industry} · {target.region}</Text>
+                      </View>
+                      <View style={styles.alignRight}>
+                        <Text style={styles.dealTargetValue}>{compactMoney(target.value, 1)}</Text>
+                        <Text style={styles.cardSub}>valuation</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.dealMetricRow}>
+                      <View style={styles.dealMetric}>
+                        <Text style={styles.dealMetricLabel}>PROFIT</Text>
+                        <Text style={styles.dealMetricValue}>+{compactMoney(target.projectedIncome, 2)}/s</Text>
+                      </View>
+                      <View style={styles.dealMetric}>
+                        <Text style={styles.dealMetricLabel}>GROWTH</Text>
+                        <Text style={styles.dealMetricValue}>+{target.growth}%</Text>
+                      </View>
+                      <View style={styles.dealMetric}>
+                        <Text style={styles.dealMetricLabel}>SYNERGY</Text>
+                        <Text style={[styles.dealMetricValue, target.synergyPct > 0 && styles.positive]}>
+                          +{Math.round(target.synergyPct * 100)}%
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.dealDetailLine}>
+                      <Text style={styles.dealDetailText}>{target.units} locations</Text>
+                      <Text style={styles.dealDetailText}>{target.employees.toLocaleString()} employees</Text>
+                      <Text style={styles.dealDetailText}>★ {target.reputation}</Text>
+                    </View>
+
+                    <Button
+                      label={
+                        !target.unlocked
+                          ? 'Unlock at ' + compactMoney(unlockWorth, 1) + ' net worth'
+                          : canAfford
+                            ? 'Acquire for ' + compactMoney(target.value, 1)
+                            : 'Need ' + compactMoney(target.value - game.balance, 1) + ' more'
+                      }
+                      onPress={() => game.acquireTarget(target.id)}
+                      disabled={!target.unlocked || !canAfford}
+                    />
+                  </Card>
+                );
+              })}
+
+              {!targets.length && (
+                <Card style={styles.dealEmptyCard}>
+                  <Text style={styles.dealEmptyIcon}>✓</Text>
+                  <Text style={styles.dealEmptyTitle}>Market cleared.</Text>
+                  <Text style={styles.dealEmptyCopy}>You acquired every company currently on the board.</Text>
+                </Card>
+              )}
+
+              {game.acquisitionHistory.length > 0 && (
+                <>
+                  <SectionTitle title="Deal history" subtitle="Your latest takeovers." />
+                  <Card style={styles.dealHistoryCard}>
+                    {game.acquisitionHistory.slice(0, 5).map((deal, index) => (
+                      <View key={deal.id} style={[styles.dealHistoryRow, index === Math.min(4, game.acquisitionHistory.length - 1) && styles.noBorder]}>
+                        <View style={styles.flex}>
+                          <Text style={styles.dealHistoryName}>{deal.name}</Text>
+                          <Text style={styles.cardSub}>+{Math.round((deal.synergyPct || 0) * 100)}% synergy</Text>
+                        </View>
+                        <Text style={styles.dealHistoryPrice}>{compactMoney(deal.price, 1)}</Text>
+                      </View>
+                    ))}
+                  </Card>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <SectionTitle title="Consolidate companies" subtitle="Merge two companies in the same industry and gain a permanent 12% income synergy." />
+              {game.mergerGroups.map((group) => {
+                const first = group.companies[0];
+                const second = group.companies[1];
+                const currentIncome = first.incomePerSec + second.incomePerSec;
+                const mergedIncome = currentIncome * 1.12;
+                return (
+                  <Card key={group.typeId}>
+                    <View style={styles.dealTargetTop}>
+                      <IconBubble tone="mint" size={58}>{group.icon}</IconBubble>
+                      <View style={styles.flex}>
+                        <Text style={styles.cardTitle}>{group.industry} merger</Text>
+                        <Text style={styles.cardSub}>{first.name} + {second.name}</Text>
+                      </View>
+                      <Text style={styles.mergeCountBadge}>{group.companies.length}</Text>
+                    </View>
+
+                    <View style={styles.mergerFlow}>
+                      <View style={styles.mergerCompany}>
+                        <Text style={styles.mergerCompanyName}>{first.name}</Text>
+                        <Text style={styles.cardSub}>{compactMoney(first.incomePerSec, 2)}/s</Text>
+                      </View>
+                      <Text style={styles.mergerPlus}>＋</Text>
+                      <View style={styles.mergerCompany}>
+                        <Text style={styles.mergerCompanyName}>{second.name}</Text>
+                        <Text style={styles.cardSub}>{compactMoney(second.incomePerSec, 2)}/s</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.mergerResult}>
+                      <Text style={styles.mergerResultLabel}>POST-MERGER PROFIT</Text>
+                      <Text style={styles.mergerResultValue}>+{compactMoney(mergedIncome, 2)}/s</Text>
+                      <Text style={styles.positive}>+{compactMoney(mergedIncome - currentIncome, 2)}/s synergy</Text>
+                    </View>
+
+                    <Button label="Merge companies" onPress={() => game.mergeBusinesses(group.typeId)} />
+                  </Card>
+                );
+              })}
+
+              {!game.mergerGroups.length && (
+                <Card style={styles.dealEmptyCard}>
+                  <Text style={styles.dealEmptyIcon}>⇄</Text>
+                  <Text style={styles.dealEmptyTitle}>Nothing to merge yet.</Text>
+                  <Text style={styles.dealEmptyCopy}>Own at least two companies of the same type and they will appear here.</Text>
+                </Card>
+              )}
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -1201,6 +1395,8 @@ function Profile({ game }) {
         <ProfileStat label="Businesses" value={game.businesses.length.toLocaleString()} />
         <ProfileStat label="Real estate" value={game.properties.reduce((s, p) => s + (p.count || 0), 0).toLocaleString()} />
         <ProfileStat label="Collectibles" value={game.assets.length.toLocaleString()} />
+        <ProfileStat label="Acquisitions" value={game.acquisitionHistory.length.toLocaleString()} />
+        <ProfileStat label="Mergers" value={game.mergerCount.toLocaleString()} />
         <ProfileStat label="Residence" value={game.residence ? game.residence.name : 'None'} />
         <ProfileStat label="Lifetime earned" value={compactMoney(game.totalEarned, 2)} />
         <ProfileStat label="Total taps" value={game.totalClicks.toLocaleString()} />
@@ -1394,6 +1590,43 @@ const styles = StyleSheet.create({
   companyStatGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   companyValueCard: { backgroundColor: C.mintSoft },
   companyValueNumber: { fontSize: 31, fontWeight: '900', color: C.text },
+
+  dealHero: { backgroundColor: '#122C3A', padding: 22 },
+  dealHeroKicker: { color: '#86A7B8', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  dealHeroMoney: { color: C.white, fontSize: 35, fontWeight: '900', marginTop: 8, letterSpacing: -1 },
+  dealHeroSub: { color: '#9DB6C3', fontSize: 13, marginTop: 3 },
+  dealHeroStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.18)' },
+  dealHeroStatLabel: { color: '#7F9AAA', fontSize: 9, fontWeight: '850', letterSpacing: 0.8 },
+  dealHeroStatValue: { color: C.white, fontSize: 17, fontWeight: '900', marginTop: 4 },
+  dealTabs: { flexDirection: 'row', gap: 8, marginTop: 4, marginBottom: 4 },
+  dealTab: { flex: 1, minHeight: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: C.card },
+  dealTabActive: { backgroundColor: C.text },
+  dealTabText: { color: C.muted, fontSize: 14, fontWeight: '800' },
+  dealTabTextActive: { color: C.white },
+  dealTargetTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  dealTargetValue: { color: C.text, fontSize: 17, fontWeight: '900' },
+  dealMetricRow: { flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 13 },
+  dealMetric: { flex: 1, backgroundColor: C.cardStrong, borderRadius: 14, padding: 10 },
+  dealMetricLabel: { color: C.faint, fontSize: 8, fontWeight: '850', letterSpacing: 0.8 },
+  dealMetricValue: { color: C.text, fontSize: 13, fontWeight: '900', marginTop: 4 },
+  dealDetailLine: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+  dealDetailText: { color: C.muted, fontSize: 11, fontWeight: '700' },
+  dealEmptyCard: { alignItems: 'center', paddingVertical: 42 },
+  dealEmptyIcon: { fontSize: 48, color: C.mint, fontWeight: '900' },
+  dealEmptyTitle: { color: C.text, fontSize: 21, fontWeight: '900', marginTop: 10 },
+  dealEmptyCopy: { color: C.muted, fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 7, maxWidth: 270 },
+  dealHistoryCard: { paddingVertical: 5 },
+  dealHistoryRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.line },
+  dealHistoryName: { color: C.text, fontSize: 15, fontWeight: '850' },
+  dealHistoryPrice: { color: C.text, fontSize: 15, fontWeight: '900' },
+  mergeCountBadge: { minWidth: 34, height: 34, borderRadius: 17, textAlign: 'center', textAlignVertical: 'center', lineHeight: 34, backgroundColor: C.mintSoft, color: C.mint, fontWeight: '900' },
+  mergerFlow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18 },
+  mergerCompany: { flex: 1, borderRadius: 15, backgroundColor: C.cardStrong, padding: 12 },
+  mergerCompanyName: { color: C.text, fontSize: 13, fontWeight: '850' },
+  mergerPlus: { color: C.muted, fontSize: 20, fontWeight: '800' },
+  mergerResult: { borderRadius: 16, backgroundColor: C.mintSoft, padding: 14, marginTop: 12, marginBottom: 14 },
+  mergerResultLabel: { color: C.muted, fontSize: 9, fontWeight: '850', letterSpacing: 0.8 },
+  mergerResultValue: { color: C.text, fontSize: 21, fontWeight: '900', marginTop: 5 },
 
   businessCardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   miniStatsRow: { flexDirection: 'row', gap: 14, marginTop: 15 },
