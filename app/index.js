@@ -183,7 +183,7 @@ function IconBubble({ children, tone = 'mint', size = 52 }) {
   );
 }
 
-function TaxStatusCard({ tax, title, incomeLabel, onPay }) {
+function TaxStatusCard({ tax, title, incomeLabel, onPay, balance }) {
   if (!tax?.active) return null;
   const due = tax.amount > 0;
   return (
@@ -213,8 +213,15 @@ function TaxStatusCard({ tax, title, incomeLabel, onPay }) {
       {due && (
         <Button
           small
-          label={tax.suspended ? 'Pay now to resume income' : 'Pay early'}
+          label={
+            balance < tax.amount
+              ? 'Need ' + compactMoney(tax.amount - balance, 1) + ' more'
+              : tax.suspended
+                ? 'Pay now to resume income'
+                : 'Pay early'
+          }
           onPress={onPay}
+          disabled={balance < tax.amount}
         />
       )}
     </Card>
@@ -508,6 +515,7 @@ function MarketSection({ title, value, items, quantityKey, onOpen, tax, onPayTax
           title="Stock tax"
           incomeLabel="Dividend income"
           onPay={onPayTax}
+          balance={game.balance}
         />
       )}
 
@@ -660,6 +668,7 @@ function RealEstate({ game }) {
         title="Real estate tax"
         incomeLabel="Rental income"
         onPay={() => game.payTax('realEstate')}
+        balance={game.balance}
       />
 
       <SectionTitle title="My property" subtitle={game.properties.length ? 'Your owned real estate.' : 'No property yet.'} />
@@ -734,6 +743,7 @@ function Business({ game }) {
           title="Company tax"
           incomeLabel="Business income"
           onPay={() => game.payTax('business')}
+          balance={game.balance}
         />
 
         <View style={styles.actionRow}>
