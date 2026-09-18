@@ -1,12 +1,16 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GameContext = createContext(null);
-const SAVE_KEY = 'minted-save-v3';
-const LEGACY_KEYS = ['minted-save-v2', 'minted-save-v1'];
+const SAVE_KEY = 'minted-save-v4';
+const LEGACY_KEYS = ['minted-save-v3', 'minted-save-v2', 'minted-save-v1'];
 const OFFLINE_CAP_SECONDS = 8 * 60 * 60;
 const MARKET_TICK_MS = 4500;
 const MARKET_EVENT_MS = 22000;
+const TAX_PERIOD_MS = 72 * 60 * 60 * 1000;
+const TAX_RATES = { business: 0.07, stocks: 0.04, realEstate: 0.05 };
+const JOB_SHIFT_SECONDS = 15;
+const JOB_COOLDOWN_MS = 12 * 1000;
 
 const clickTiers = [1, 3, 10, 50, 250, 1000, 5000, 25000, 100000, 500000];
 const clickCosts = [0, 50, 400, 4000, 30000, 250000, 2000000, 15000000, 120000000, 900000000];
@@ -163,11 +167,27 @@ const getBusinessIncome = (businesses) => businesses.reduce((sum, business) => s
 const getPropertyIncome = (properties) => properties.reduce((sum, property) => sum + (property.rentPerSec || 0) * (property.count || 0), 0);
 const getJobIncome = (jobs, activeJobId) => jobs.find((job) => job.id === activeJobId)?.incomePerSec || 0;
 const getDividendIncome = (stocks) => stocks.reduce((sum, stock) => sum + stock.shares * stock.price * stock.yieldRate, 0);
-const getPassiveFromSave = (save) =>
-  getBusinessIncome(save.businesses || []) +
-  getPropertyIncome(save.properties || []) +
-  getJobIncome(save.jobs || defaultJobs, save.activeJobId) +
-  getDividendIncome(save.stocks || defaultStocks);
+const createTaxAccounts = () => ({
+  business: { accrued: 0, dueAt: null, lastPaidAt: null },
+  stocks: { accrued: 0, dueAt: null, lastPaidAt: null },
+  realEstate: { accrued: 0, dueAt: null, lastPaidAt: null },
+});
+
+const normalizeTaxAccount = (account, active, now) => ({
+  accrued: Math.max(0, Number(account?.accrued || 0)),
+  dueAt: active || Number(account?.accrued || 0) > 0
+    ? (Number(account?.dueAt || 0) || (now + TAX_PERIOD_MS))
+    : null,
+  lastPaidAt: Number(account?.lastPaidAt || 0) || null,
+});
+
+const getOfflineTaxableIncome = (ratePerSec, account, savedAt, now) => {
+  if (ratePerSec <= 0) return 0;
+  if (account?.accrued > 0 && account?.dueAt && account.dueAt <= savedAt) return 0;
+  const capEnd = Math.min(now, savedAt + OFFLINE_CAP_SECONDS * 1000);
+  const earnUntil = account?.dueAt ? Math.min(capEnd, account.dueAt) : capEnd;
+  return Math.max(0, earnUntil - savedAt) / 1000 * ratePerSec;
+};
 
 const mergeMarket = (defaults, saved, quantityKey) =>
   defaults.map((base) => {
@@ -219,8 +239,10 @@ export function GameProvider({ children }) {
   const [stocks, setStocks] = useState(clone(defaultStocks));
   const [crypto, setCrypto] = useState(clone(defaultCrypto));
   const [jobs, setJobs] = useState(clone(defaultJobs));
-  const [activeJobId, setActiveJobId] = useState('delivery');
-  const [taxDue, setTaxDue] = useState(0);
+  const [activeJobId, setActiveJobId] = useState(null);
+  const [lastWorkedAt, setLastWorkedAt] = useState(0);
+  const [taxAccounts, setTaxAccounts] = useState(createTaxAccounts());
+  const [clockNow, setClockNow] = useState(Date.now());
   const [offlineEarnings, setOfflineEarnings] = useState(0);
   const [lastSavedAt, setLastSavedAt] = useState(Date.now());
   const [activity, setActivity] = useState([]);
@@ -228,6 +250,7 @@ export function GameProvider({ children }) {
   const [dailyStreak, setDailyStreak] = useState(0);
   const [lastDailyClaim, setLastDailyClaim] = useState(null);
   const [marketHeadline, setMarketHeadline] = useState('Markets are open. Prices move every few seconds.');
+  const saveSnapshotRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -275,11 +298,25 @@ export function GameProvider({ children }) {
               value: Number(business.value || base.cost),
             };
           }).filter(Boolean);
-          const savedAt = save.lastSavedAt || Date.now();
-          const elapsedSeconds = Math.min(OFFLINE_CAP_SECONDS, Math.max(0, (Date.now() - savedAt) / 1000));
-          const offline = sourceKey === 'minted-save-v1'
-            ? 0
-            : getPassiveFromSave({ ...save, businesses: migratedBusinesses, stocks: migratedStocks, jobs: migratedJobs }) * elapsedSeconds;
+          const savedAt = Number(save.lastSavedAt || Date.now());
+          const now = Date.now();
+          const migratedProperties = save.properties || [];
+          const freshTaxSchema = sourceKey === SAVE_KEY;
+          const sourceTaxes = freshTaxSchema ? (save.taxAccounts || {}) : {};
+          const normalizedTaxes = {
+            business: normalizeTaxAccount(sourceTaxes.business, migratedBusinesses.length > 0, now),
+            stocks: normalizeTaxAccount(sourceTaxes.stocks, migratedStocks.some((stock) => stock.shares > 0), now),
+            realEstate: normalizeTaxAccount(sourceTaxes.realEstate, migratedProperties.some((property) => (property.count || 0) > 0), now),
+          };
+
+          const businessOffline = getOfflineTaxableIncome(getBusinessIncome(migratedBusinesses), normalizedTaxes.business, savedAt, now);
+          const propertyOffline = getOfflineTaxableIncome(getPropertyIncome(migratedProperties), normalizedTaxes.realEstate, savedAt, now);
+          const stockOffline = getOfflineTaxableIncome(getDividendIncome(migratedStocks), normalizedTaxes.stocks, savedAt, now);
+          const offline = businessOffline + propertyOffline + stockOffline;
+
+          normalizedTaxes.business.accrued += businessOffline * TAX_RATES.business;
+          normalizedTaxes.realEstate.accrued += propertyOffline * TAX_RATES.realEstate;
+          normalizedTaxes.stocks.accrued += stockOffline * TAX_RATES.stocks;
 
           setBalance(Number(save.balance || 0) + offline);
           setTotalEarned(Number(save.totalEarned || 0) + offline);
@@ -289,7 +326,7 @@ export function GameProvider({ children }) {
           setAcquiredTargetIds(save.acquiredTargetIds || []);
           setAcquisitionHistory(save.acquisitionHistory || []);
           setMergerCount(Number(save.mergerCount || 0));
-          setProperties(save.properties || []);
+          setProperties(migratedProperties);
           setAssets((save.assets || []).filter((owned) => assetCatalogData.some((item) => item.id === owned.id)));
           setResidenceTier(Number.isFinite(Number(save.residenceTier)) ? Number(save.residenceTier) : -1);
           setResidenceSecurity(Number(save.residenceSecurity || 0));
@@ -298,8 +335,10 @@ export function GameProvider({ children }) {
           setStocks(migratedStocks);
           setCrypto(migratedCrypto);
           setJobs(migratedJobs);
-          setActiveJobId(save.activeJobId || 'delivery');
-          setTaxDue(Number(save.taxDue || 0));
+          setActiveJobId(save.activeJobId || null);
+          setLastWorkedAt(Number(save.lastWorkedAt || 0));
+          setTaxAccounts(normalizedTaxes);
+          setClockNow(now);
           setOfflineEarnings(offline);
           setActivity(save.activity || []);
           setClaimedAchievements(save.claimedAchievements || []);
@@ -315,23 +354,118 @@ export function GameProvider({ children }) {
     })();
   }, []);
 
-  const businessIncomePerSec = useMemo(() => getBusinessIncome(businesses), [businesses]);
-  const propertyIncomePerSec = useMemo(() => getPropertyIncome(properties), [properties]);
-  const jobIncomePerSec = useMemo(() => getJobIncome(jobs, activeJobId), [jobs, activeJobId]);
-  const dividendIncomePerSec = useMemo(() => getDividendIncome(stocks), [stocks]);
-  const passivePerSec = businessIncomePerSec + propertyIncomePerSec + jobIncomePerSec + dividendIncomePerSec;
+  useEffect(() => {
+    if (!loaded) return undefined;
+    const id = setInterval(() => setClockNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [loaded]);
+
+  const businessGrossIncomePerSec = useMemo(() => getBusinessIncome(businesses), [businesses]);
+  const propertyGrossIncomePerSec = useMemo(() => getPropertyIncome(properties), [properties]);
+  const dividendGrossIncomePerSec = useMemo(() => getDividendIncome(stocks), [stocks]);
+
+  const hasBusinessTaxSource = businesses.length > 0 || taxAccounts.business.accrued > 0;
+  const hasStockTaxSource = stocks.some((stock) => stock.shares > 0) || taxAccounts.stocks.accrued > 0;
+  const hasRealEstateTaxSource = properties.some((property) => (property.count || 0) > 0) || taxAccounts.realEstate.accrued > 0;
+
+  const makeTaxStatus = (key, active) => {
+    const account = taxAccounts[key] || createTaxAccounts()[key];
+    const amount = Math.max(0, Number(account.accrued || 0));
+    const dueAt = Number(account.dueAt || 0) || null;
+    const overdue = !!(active && amount > 0 && dueAt && clockNow >= dueAt);
+    return {
+      key,
+      active,
+      amount,
+      dueAt,
+      overdue,
+      suspended: overdue,
+      rate: TAX_RATES[key],
+      timeRemainingMs: dueAt ? Math.max(0, dueAt - clockNow) : null,
+      lastPaidAt: account.lastPaidAt || null,
+    };
+  };
+
+  const taxes = {
+    business: makeTaxStatus('business', hasBusinessTaxSource),
+    stocks: makeTaxStatus('stocks', hasStockTaxSource),
+    realEstate: makeTaxStatus('realEstate', hasRealEstateTaxSource),
+  };
+
+  const businessIncomePerSec = taxes.business.suspended ? 0 : businessGrossIncomePerSec;
+  const propertyIncomePerSec = taxes.realEstate.suspended ? 0 : propertyGrossIncomePerSec;
+  const dividendIncomePerSec = taxes.stocks.suspended ? 0 : dividendGrossIncomePerSec;
+  const jobIncomePerSec = 0;
+  const passivePerSec = businessIncomePerSec + propertyIncomePerSec + dividendIncomePerSec;
+  const hasPassiveSource = businessGrossIncomePerSec > 0 || propertyGrossIncomePerSec > 0 || dividendGrossIncomePerSec > 0;
+  const totalTaxDue = taxes.business.amount + taxes.stocks.amount + taxes.realEstate.amount;
+
+  const selectedJob = jobs.find((job) => job.id === activeJobId) || null;
+  const jobShiftPay = selectedJob ? selectedJob.incomePerSec * JOB_SHIFT_SECONDS : 0;
+  const jobReadyAt = lastWorkedAt ? lastWorkedAt + JOB_COOLDOWN_MS : 0;
+  const jobReady = !lastWorkedAt || clockNow >= jobReadyAt;
 
   useEffect(() => {
     if (!loaded) return undefined;
     const id = setInterval(() => {
-      const add = passivePerSec / 5;
+      const businessAdd = taxes.business.suspended ? 0 : businessGrossIncomePerSec / 5;
+      const propertyAdd = taxes.realEstate.suspended ? 0 : propertyGrossIncomePerSec / 5;
+      const stockAdd = taxes.stocks.suspended ? 0 : dividendGrossIncomePerSec / 5;
+      const add = businessAdd + propertyAdd + stockAdd;
       if (add <= 0) return;
+
       setBalance((value) => value + add);
       setTotalEarned((value) => value + add);
-      setTaxDue((value) => value + add * 0.035);
+      setTaxAccounts((accounts) => ({
+        ...accounts,
+        business: businessAdd > 0 ? {
+          ...accounts.business,
+          accrued: Number(accounts.business.accrued || 0) + businessAdd * TAX_RATES.business,
+          dueAt: accounts.business.dueAt || (Date.now() + TAX_PERIOD_MS),
+        } : accounts.business,
+        stocks: stockAdd > 0 ? {
+          ...accounts.stocks,
+          accrued: Number(accounts.stocks.accrued || 0) + stockAdd * TAX_RATES.stocks,
+          dueAt: accounts.stocks.dueAt || (Date.now() + TAX_PERIOD_MS),
+        } : accounts.stocks,
+        realEstate: propertyAdd > 0 ? {
+          ...accounts.realEstate,
+          accrued: Number(accounts.realEstate.accrued || 0) + propertyAdd * TAX_RATES.realEstate,
+          dueAt: accounts.realEstate.dueAt || (Date.now() + TAX_PERIOD_MS),
+        } : accounts.realEstate,
+      }));
     }, 200);
     return () => clearInterval(id);
-  }, [loaded, passivePerSec]);
+  }, [
+    loaded,
+    businessGrossIncomePerSec,
+    propertyGrossIncomePerSec,
+    dividendGrossIncomePerSec,
+    taxes.business.suspended,
+    taxes.stocks.suspended,
+    taxes.realEstate.suspended,
+  ]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    setTaxAccounts((accounts) => {
+      const now = Date.now();
+      let changed = false;
+      const next = { ...accounts };
+      [
+        ['business', businesses.length > 0],
+        ['stocks', stocks.some((stock) => stock.shares > 0)],
+        ['realEstate', properties.some((property) => (property.count || 0) > 0)],
+      ].forEach(([key, active]) => {
+        const account = next[key];
+        if (active && (!account.dueAt || (account.dueAt <= now && Number(account.accrued || 0) <= 0))) {
+          next[key] = { ...account, dueAt: now + TAX_PERIOD_MS };
+          changed = true;
+        }
+      });
+      return changed ? next : accounts;
+    });
+  }, [loaded, clockNow, businesses.length, stocks, properties]);
 
   useEffect(() => {
     if (!loaded) return undefined;
@@ -369,45 +503,7 @@ export function GameProvider({ children }) {
     return () => clearInterval(id);
   }, [loaded]);
 
-  useEffect(() => {
-    if (!loaded) return undefined;
-    const id = setInterval(async () => {
-      const now = Date.now();
-      setLastSavedAt(now);
-      try {
-        await AsyncStorage.setItem(SAVE_KEY, JSON.stringify({
-          balance,
-          totalEarned,
-          totalClicks,
-          clickTier,
-          businesses,
-          acquiredTargetIds,
-          acquisitionHistory,
-          mergerCount,
-          properties,
-          assets,
-          residenceTier,
-          residenceSecurity,
-          residenceStaff,
-          residenceImprovementsOwned,
-          stocks,
-          crypto,
-          jobs,
-          activeJobId,
-          taxDue,
-          activity,
-          claimedAchievements,
-          dailyStreak,
-          lastDailyClaim,
-          lastSavedAt: now,
-        }));
-      } catch (error) {
-        console.warn('Minted save could not be written', error);
-      }
-    }, 2500);
-    return () => clearInterval(id);
-  }, [
-    loaded,
+  saveSnapshotRef.current = {
     balance,
     totalEarned,
     totalClicks,
@@ -426,12 +522,28 @@ export function GameProvider({ children }) {
     crypto,
     jobs,
     activeJobId,
-    taxDue,
+    lastWorkedAt,
+    taxAccounts,
     activity,
     claimedAchievements,
     dailyStreak,
     lastDailyClaim,
-  ]);
+  };
+
+  useEffect(() => {
+    if (!loaded) return undefined;
+    const id = setInterval(async () => {
+      const now = Date.now();
+      const snapshot = { ...(saveSnapshotRef.current || {}), lastSavedAt: now };
+      try {
+        await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+        setLastSavedAt(now);
+      } catch (error) {
+        console.warn('Minted save could not be written', error);
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, [loaded]);
 
   const stockValue = useMemo(() => stocks.reduce((sum, stock) => sum + stock.shares * stock.price, 0), [stocks]);
   const cryptoValue = useMemo(() => crypto.reduce((sum, coin) => sum + coin.units * coin.price, 0), [crypto]);
@@ -454,7 +566,7 @@ export function GameProvider({ children }) {
   const residenceStaffCost = residence
     ? Math.ceil(Math.max(1200, residence.cost * 0.03) * Math.pow(1.5, residenceStaff))
     : 0;
-  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue + residenceValue - taxDue);
+  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue + residenceValue - totalTaxDue);
 
   const rankIndex = rankTiers.reduce((best, tier, index) => netWorth >= tier.min ? index : best, 0);
   const rank = rankTiers[rankIndex];
@@ -550,7 +662,6 @@ export function GameProvider({ children }) {
     setBalance((value) => value + clickValue);
     setTotalEarned((value) => value + clickValue);
     setTotalClicks((value) => value + 1);
-    setTaxDue((value) => value + clickValue * 0.01);
   };
 
   const buyClickUpgrade = () => {
@@ -580,6 +691,15 @@ export function GameProvider({ children }) {
       managerCost: Math.ceil(base.cost * 2.4),
       value: base.cost,
     }]);
+    setTaxAccounts((accounts) => ({
+      ...accounts,
+      business: {
+        ...accounts.business,
+        dueAt: accounts.business.dueAt && accounts.business.dueAt > Date.now()
+          ? accounts.business.dueAt
+          : Date.now() + TAX_PERIOD_MS,
+      },
+    }));
     addActivityItem(setActivity, `${chosenName} launched.`, 'business');
     return true;
   };
@@ -661,7 +781,16 @@ export function GameProvider({ children }) {
       synergyPct: target.synergyPct,
       at: Date.now(),
     }, ...items].slice(0, 30));
-    addActivityItem(setActivity, `${target.name} acquired for $${Math.round(target.value).toLocaleString()}.`, 'business');
+    setTaxAccounts((accounts) => ({
+      ...accounts,
+      business: {
+        ...accounts.business,
+        dueAt: accounts.business.dueAt && accounts.business.dueAt > Date.now()
+          ? accounts.business.dueAt
+          : Date.now() + TAX_PERIOD_MS,
+      },
+    }));
+    addActivityItem(setActivity, `${target.name} acquired for ${Math.round(target.value).toLocaleString()}.`, 'business');
     return true;
   };
 
@@ -710,6 +839,15 @@ export function GameProvider({ children }) {
       }
       return [...items, { ...base, count: 1, value: base.cost }];
     });
+    setTaxAccounts((accounts) => ({
+      ...accounts,
+      realEstate: {
+        ...accounts.realEstate,
+        dueAt: accounts.realEstate.dueAt && accounts.realEstate.dueAt > Date.now()
+          ? accounts.realEstate.dueAt
+          : Date.now() + TAX_PERIOD_MS,
+      },
+    }));
     addActivityItem(setActivity, `${base.name} purchased in ${base.location}.`, 'property');
   };
 
@@ -762,7 +900,16 @@ export function GameProvider({ children }) {
         avgCost: ((stock.avgCost * stock.shares) + cost) / (stock.shares + qty),
         shares: stock.shares + qty,
       } : stock));
-      addActivityItem(setActivity, `Bought ${qty} ${item.symbol} for $${Math.round(cost).toLocaleString()}.`, 'market');
+      setTaxAccounts((accounts) => ({
+        ...accounts,
+        stocks: {
+          ...accounts.stocks,
+          dueAt: accounts.stocks.dueAt && accounts.stocks.dueAt > Date.now()
+            ? accounts.stocks.dueAt
+            : Date.now() + TAX_PERIOD_MS,
+        },
+      }));
+      addActivityItem(setActivity, `Bought ${qty} ${item.symbol} for ${Math.round(cost).toLocaleString()}.`, 'market');
     } else {
       const actualQty = Math.min(qty, item.shares);
       if (actualQty <= 0) return;
@@ -811,17 +958,42 @@ export function GameProvider({ children }) {
 
   const takeJob = (id) => {
     const job = jobs.find((item) => item.id === id);
-    if (!job || netWorth < job.unlockNetWorth) return;
+    if (!job || netWorth < job.unlockNetWorth) return false;
     setActiveJobId(id);
-    addActivityItem(setActivity, `${job.name} is now your active career.`, 'career');
+    setLastWorkedAt(0);
+    addActivityItem(setActivity, `${job.name} is now your active job.`, 'career');
+    return true;
   };
 
-  const payTaxes = () => {
-    if (taxDue <= 0 || balance <= 0) return;
-    const payment = Math.min(balance, taxDue);
-    setBalance((value) => value - payment);
-    setTaxDue((value) => Math.max(0, value - payment));
-    addActivityItem(setActivity, `Paid $${Math.round(payment).toLocaleString()} in taxes.`, 'tax');
+  const workJob = () => {
+    if (!selectedJob || !jobReady) return false;
+    const pay = jobShiftPay;
+    setBalance((value) => value + pay);
+    setTotalEarned((value) => value + pay);
+    setLastWorkedAt(Date.now());
+    addActivityItem(setActivity, `Worked a ${selectedJob.name} shift: +$${Math.round(pay).toLocaleString()}.`, 'career');
+    return true;
+  };
+
+  const payTax = (category) => {
+    if (!['business', 'stocks', 'realEstate'].includes(category)) return false;
+    const account = taxAccounts[category];
+    const amount = Math.max(0, Number(account?.accrued || 0));
+    if (amount <= 0 || balance < amount) return false;
+    const now = Date.now();
+    setBalance((value) => value - amount);
+    setTaxAccounts((accounts) => ({
+      ...accounts,
+      [category]: {
+        ...accounts[category],
+        accrued: 0,
+        dueAt: now + TAX_PERIOD_MS,
+        lastPaidAt: now,
+      },
+    }));
+    const names = { business: 'company', stocks: 'stock', realEstate: 'real estate' };
+    addActivityItem(setActivity, `Paid $${Math.round(amount).toLocaleString()} in ${names[category]} tax.`, 'tax');
+    return true;
   };
 
   const claimDaily = () => {
@@ -875,10 +1047,16 @@ export function GameProvider({ children }) {
       canBuyClick,
       maxClick,
       passivePerSec,
+      hasPassiveSource,
       businessIncomePerSec,
+      businessGrossIncomePerSec,
       propertyIncomePerSec,
+      propertyGrossIncomePerSec,
       jobIncomePerSec,
       dividendIncomePerSec,
+      dividendGrossIncomePerSec,
+      taxes,
+      totalTaxDue,
       businesses,
       businessCatalog,
       acquisitionTargets,
@@ -893,6 +1071,10 @@ export function GameProvider({ children }) {
       crypto,
       jobs,
       activeJobId,
+      selectedJob,
+      jobShiftPay,
+      jobReady,
+      jobReadyAt,
       stockValue,
       cryptoValue,
       marketValue,
@@ -910,7 +1092,6 @@ export function GameProvider({ children }) {
       residenceStaffCost,
       residenceValue,
       netWorth,
-      taxDue,
       offlineEarnings,
       lastSavedAt,
       activity,
@@ -941,7 +1122,8 @@ export function GameProvider({ children }) {
       buyCrypto,
       sellCrypto,
       takeJob,
-      payTaxes,
+      workJob,
+      payTax,
       claimDaily,
       claimAchievement,
       clearOfflineEarnings,

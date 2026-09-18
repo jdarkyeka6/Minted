@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - minted-overhaul
+      - economy-tax-overhaul
   workflow_dispatch:
 
 jobs:
