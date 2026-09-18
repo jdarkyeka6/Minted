@@ -76,6 +76,26 @@ const assetCatalogData = [
   { id: 'crown', name: 'Royal Relic', icon: '👑', category: 'collectibles', cost: 950000000, prestige: 28000 },
 ];
 
+const residenceCatalogData = [
+  { id: 'apartment', name: 'City Apartment', icon: '🏢', cost: 75000 },
+  { id: 'penthouse', name: 'Skyline Penthouse', icon: '🌃', cost: 1200000 },
+  { id: 'estate', name: 'Coastal Estate', icon: '🏡', cost: 18000000 },
+  { id: 'compound', name: 'Private Compound', icon: '🏰', cost: 280000000 },
+  { id: 'citadel', name: 'Billionaire Citadel', icon: '🏯', cost: 4200000000 },
+];
+
+const residenceImprovementData = [
+  { id: 'garage', name: 'Collector Garage', icon: '🚘', cost: 120000, minTier: 0 },
+  { id: 'gym', name: 'Private Gym', icon: '🏋️', cost: 260000, minTier: 0 },
+  { id: 'pool', name: 'Infinity Pool', icon: '🏊', cost: 850000, minTier: 1 },
+  { id: 'cinema', name: 'Private Cinema', icon: '🎬', cost: 1600000, minTier: 1 },
+  { id: 'vault', name: 'High Security Vault', icon: '🔐', cost: 12000000, minTier: 2 },
+  { id: 'helipad', name: 'Helipad', icon: '🚁', cost: 38000000, minTier: 2 },
+  { id: 'bunker', name: 'Underground Bunker', icon: '🛡️', cost: 240000000, minTier: 3 },
+  { id: 'hangar', name: 'Private Hangar', icon: '🛩️', cost: 620000000, minTier: 3 },
+  { id: 'launchpad', name: 'Launch Pad', icon: '🚀', cost: 6500000000, minTier: 4 },
+];
+
 const defaultStocks = [
   { id: 'NSAI', symbol: 'NSAI', name: 'Northstar AI', icon: '✦', price: 86.25, changePct: 0, shares: 0, avgCost: 0, volatility: 0.035, drift: 0.0015, yieldRate: 0.00007 },
   { id: 'VLT', symbol: 'VLT', name: 'Volterra Motors', icon: 'V', price: 42.6, changePct: 0, shares: 0, avgCost: 0, volatility: 0.045, drift: 0.001, yieldRate: 0.00004 },
@@ -164,6 +184,10 @@ export function GameProvider({ children }) {
   const [businesses, setBusinesses] = useState([]);
   const [properties, setProperties] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [residenceTier, setResidenceTier] = useState(-1);
+  const [residenceSecurity, setResidenceSecurity] = useState(0);
+  const [residenceStaff, setResidenceStaff] = useState(0);
+  const [residenceImprovementsOwned, setResidenceImprovementsOwned] = useState([]);
   const [stocks, setStocks] = useState(clone(defaultStocks));
   const [crypto, setCrypto] = useState(clone(defaultCrypto));
   const [jobs, setJobs] = useState(clone(defaultJobs));
@@ -199,7 +223,7 @@ export function GameProvider({ children }) {
           const migratedCrypto = mergeMarket(defaultCrypto, save.crypto, 'units');
           const migratedJobs = defaultJobs.map((base) => ({ ...base, ...(save.jobs?.find((job) => job.id === base.id) || {}) }));
           const migratedBusinesses = (save.businesses || []).map((business) => {
-            const base = businessCatalogData.find((item) => item.id === business.id);
+            const base = businessCatalogData.find((item) => item.id === (business.typeId || business.id));
             const managerLevel = business.managerLevel || 0;
             return {
               ...business,
@@ -224,6 +248,10 @@ export function GameProvider({ children }) {
           setBusinesses(migratedBusinesses);
           setProperties(save.properties || []);
           setAssets(save.assets || []);
+          setResidenceTier(Number.isFinite(Number(save.residenceTier)) ? Number(save.residenceTier) : -1);
+          setResidenceSecurity(Number(save.residenceSecurity || 0));
+          setResidenceStaff(Number(save.residenceStaff || 0));
+          setResidenceImprovementsOwned(save.residenceImprovementsOwned || []);
           setStocks(migratedStocks);
           setCrypto(migratedCrypto);
           setJobs(migratedJobs);
@@ -312,6 +340,10 @@ export function GameProvider({ children }) {
           businesses,
           properties,
           assets,
+          residenceTier,
+          residenceSecurity,
+          residenceStaff,
+          residenceImprovementsOwned,
           stocks,
           crypto,
           jobs,
@@ -337,6 +369,10 @@ export function GameProvider({ children }) {
     businesses,
     properties,
     assets,
+    residenceTier,
+    residenceSecurity,
+    residenceStaff,
+    residenceImprovementsOwned,
     stocks,
     crypto,
     jobs,
@@ -355,7 +391,21 @@ export function GameProvider({ children }) {
   const propertyValue = useMemo(() => properties.reduce((sum, property) => sum + (property.value || 0), 0), [properties]);
   const assetValue = useMemo(() => assets.reduce((sum, asset) => sum + (asset.cost || 0), 0), [assets]);
   const prestige = useMemo(() => assets.reduce((sum, asset) => sum + (asset.prestige || 0), 0), [assets]);
-  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue - taxDue);
+  const residence = residenceTier >= 0 ? residenceCatalogData[residenceTier] : null;
+  const residenceBaseValue = residenceTier >= 0
+    ? residenceCatalogData.slice(0, residenceTier + 1).reduce((sum, item) => sum + item.cost, 0)
+    : 0;
+  const residenceImprovementValue = residenceImprovementData
+    .filter((item) => residenceImprovementsOwned.includes(item.id))
+    .reduce((sum, item) => sum + item.cost, 0);
+  const residenceValue = residenceBaseValue + residenceImprovementValue;
+  const residenceSecurityCost = residence
+    ? Math.ceil(Math.max(1500, residence.cost * 0.04) * Math.pow(1.55, residenceSecurity))
+    : 0;
+  const residenceStaffCost = residence
+    ? Math.ceil(Math.max(1200, residence.cost * 0.03) * Math.pow(1.5, residenceStaff))
+    : 0;
+  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue + residenceValue - taxDue);
 
   const rankIndex = rankTiers.reduce((best, tier, index) => netWorth >= tier.min ? index : best, 0);
   const rank = rankTiers[rankIndex];
@@ -384,6 +434,19 @@ export function GameProvider({ children }) {
     owned: assets.some((owned) => owned.id === asset.id),
   }));
 
+  const residenceCatalog = residenceCatalogData.map((item, index) => ({
+    ...item,
+    owned: index <= residenceTier,
+    current: index === residenceTier,
+    unlocked: index === 0 || residenceTier >= index - 1,
+    next: index === residenceTier + 1,
+  }));
+  const residenceImprovements = residenceImprovementData.map((item) => ({
+    ...item,
+    owned: residenceImprovementsOwned.includes(item.id),
+    unlocked: residenceTier >= item.minTier,
+  }));
+
   const dailyAvailable = lastDailyClaim !== todayKey();
   const dailyReward = Math.max(250, Math.min(50000000, 250 + netWorth * 0.002 + Math.max(1, dailyStreak + 1) * 250));
 
@@ -392,6 +455,7 @@ export function GameProvider({ children }) {
     { id: 'business', title: 'Founder', detail: 'Open your first business', reward: 1250, unlocked: businesses.length > 0 },
     { id: 'investor', title: 'Investor', detail: 'Own any stock or crypto', reward: 2500, unlocked: stocks.some((s) => s.shares > 0) || crypto.some((c) => c.units > 0) },
     { id: 'landlord', title: 'Landlord', detail: 'Buy your first property', reward: 5000, unlocked: properties.length > 0 },
+    { id: 'residence', title: 'Home base', detail: 'Buy your first residence', reward: 10000, unlocked: residenceTier >= 0 },
     { id: '100k', title: 'Six figures', detail: 'Reach $100K net worth', reward: 20000, unlocked: netWorth >= 100000 },
     { id: 'million', title: 'Millionaire', detail: 'Reach $1M net worth', reward: 150000, unlocked: netWorth >= 1000000 },
     { id: 'mogul', title: 'Portfolio monster', detail: 'Own 5 businesses or properties', reward: 500000, unlocked: businesses.length + properties.length >= 5 },
@@ -510,6 +574,36 @@ export function GameProvider({ children }) {
     if (!item || item.owned || !item.unlocked || !spend(item.cost)) return;
     setAssets((items) => [...items, item]);
     addActivityItem(setActivity, `${item.name} added to the collection.`, 'asset');
+  };
+
+  const buyResidenceTier = (index) => {
+    const item = residenceCatalogData[index];
+    if (!item || index !== residenceTier + 1 || !spend(item.cost)) return false;
+    setResidenceTier(index);
+    addActivityItem(setActivity, `${item.name} became your new residence tier.`, 'asset');
+    return true;
+  };
+
+  const upgradeResidenceSecurity = () => {
+    if (!residence || residenceSecurity >= 25 || !spend(residenceSecurityCost)) return false;
+    setResidenceSecurity((value) => value + 1);
+    addActivityItem(setActivity, `Residence security upgraded to level ${residenceSecurity + 1}.`, 'upgrade');
+    return true;
+  };
+
+  const upgradeResidenceStaff = () => {
+    if (!residence || residenceStaff >= 25 || !spend(residenceStaffCost)) return false;
+    setResidenceStaff((value) => value + 1);
+    addActivityItem(setActivity, `Residence staff upgraded to level ${residenceStaff + 1}.`, 'upgrade');
+    return true;
+  };
+
+  const buyResidenceImprovement = (id) => {
+    const item = residenceImprovementData.find((improvement) => improvement.id === id);
+    if (!item || residenceTier < item.minTier || residenceImprovementsOwned.includes(id) || !spend(item.cost)) return false;
+    setResidenceImprovementsOwned((items) => [...items, id]);
+    addActivityItem(setActivity, `${item.name} added to your residence.`, 'asset');
+    return true;
   };
 
   const tradeStock = (id, quantity, direction) => {
@@ -658,6 +752,15 @@ export function GameProvider({ children }) {
       propertyValue,
       assetValue,
       prestige,
+      residence,
+      residenceTier,
+      residenceCatalog,
+      residenceImprovements,
+      residenceSecurity,
+      residenceStaff,
+      residenceSecurityCost,
+      residenceStaffCost,
+      residenceValue,
       netWorth,
       taxDue,
       offlineEarnings,
@@ -679,6 +782,10 @@ export function GameProvider({ children }) {
       hireManager,
       buyProperty,
       buyAsset,
+      buyResidenceTier,
+      upgradeResidenceSecurity,
+      upgradeResidenceStaff,
+      buyResidenceImprovement,
       buyStock,
       sellStock,
       buyCrypto,
