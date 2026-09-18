@@ -164,6 +164,18 @@ const mergeMarket = (defaults, saved, quantityKey) =>
     };
   });
 
+const legacyBusinessTypeMap = {
+  cart: 'shop',
+  coffee: 'shop',
+  studio: 'software',
+  logistics: 'shipping',
+  software: 'software',
+  factory: 'factory',
+  bank: 'bank',
+  airline: 'airline',
+  space: 'space',
+};
+
 const addActivityItem = (setActivity, text, type = 'money') => {
   setActivity((items) => [
     { id: `${Date.now()}-${Math.random()}`, text, type, at: Date.now() },
@@ -218,19 +230,31 @@ export function GameProvider({ children }) {
           const migratedStocks = mergeMarket(defaultStocks, save.stocks, 'shares');
           const migratedCrypto = mergeMarket(defaultCrypto, save.crypto, 'units');
           const migratedJobs = defaultJobs.map((base) => ({ ...base, ...(save.jobs?.find((job) => job.id === base.id) || {}) }));
-          const migratedBusinesses = (save.businesses || []).map((business) => {
-            const base = businessCatalogData.find((item) => item.id === (business.typeId || business.id));
+          const migratedBusinesses = (save.businesses || []).map((business, index) => {
+            const originalType = business.typeId || business.id;
+            const mappedType = legacyBusinessTypeMap[originalType] || originalType;
+            const base = businessCatalogData.find((item) => item.id === mappedType);
+            if (!base) return null;
             const managerLevel = business.managerLevel || 0;
+            const isLegacyInstance = !business.typeId;
             return {
               ...business,
-              typeId: business.typeId || business.id,
+              id: isLegacyInstance ? `${mappedType}-legacy-${index}` : business.id,
+              typeId: mappedType,
+              name: business.name || base.name,
+              icon: base.icon,
+              industry: base.industry,
               level: business.level || 1,
               units: business.units || 1,
               multiplier: business.multiplier || 1,
               managerLevel,
-              managerCost: business.managerCost || Math.ceil((base?.cost || Math.max(1, business.value || 1)) * 2.4 * Math.pow(2.7, managerLevel)),
+              incomePerSec: Number(business.incomePerSec || base.baseIncome),
+              unitCost: Number(business.unitCost || Math.ceil(base.cost * 0.6)),
+              upgradeCost: Number(business.upgradeCost || Math.ceil(base.cost * 1.25)),
+              managerCost: Number(business.managerCost || Math.ceil(base.cost * 2.4 * Math.pow(2.7, managerLevel))),
+              value: Number(business.value || base.cost),
             };
-          });
+          }).filter(Boolean);
           const savedAt = save.lastSavedAt || Date.now();
           const elapsedSeconds = Math.min(OFFLINE_CAP_SECONDS, Math.max(0, (Date.now() - savedAt) / 1000));
           const offline = sourceKey === 'minted-save-v1'
@@ -243,7 +267,7 @@ export function GameProvider({ children }) {
           setClickTier(Math.min(Number(save.clickTier || 0), clickTiers.length - 1));
           setBusinesses(migratedBusinesses);
           setProperties(save.properties || []);
-          setAssets(save.assets || []);
+          setAssets((save.assets || []).filter((owned) => assetCatalogData.some((item) => item.id === owned.id)));
           setResidenceTier(Number.isFinite(Number(save.residenceTier)) ? Number(save.residenceTier) : -1);
           setResidenceSecurity(Number(save.residenceSecurity || 0));
           setResidenceStaff(Number(save.residenceStaff || 0));
