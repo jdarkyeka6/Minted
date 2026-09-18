@@ -46,7 +46,6 @@ const COLLECTIONS = [
   { id: 'aircraft', title: 'Hangar', icon: '✈', assetIds: ['propPlane', 'jet', 'airliner'] },
   { id: 'collectibles', title: 'Collectibles', icon: '★', assetIds: ['painting', 'signature', 'meteorite', 'crown'] },
   { id: 'islands', title: 'Islands', icon: '⌁', assetIds: ['tinyIsland', 'island', 'islandEstate'] },
-  { id: 'residence', title: 'Residence', icon: '⌂', assetIds: ['mansion', 'compound', 'moon'] },
 ];
 
 const compactMoney = (value, decimals = 1) => {
@@ -718,6 +717,7 @@ function StartBusinessModal({ open, game, onClose }) {
 
 function Items({ game }) {
   const [selectedCollection, setSelectedCollection] = useState(null);
+  const [residenceOpen, setResidenceOpen] = useState(false);
 
   const collectionRows = useMemo(() => COLLECTIONS.map((collection) => {
     const items = game.assetCatalog.filter((asset) => collection.assetIds.includes(asset.id));
@@ -725,10 +725,48 @@ function Items({ game }) {
     return { ...collection, items, owned };
   }), [game.assetCatalog]);
 
+  const nextResidence = game.residenceCatalog.find((item) => item.next);
+
   return (
     <>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Header title="Items" subtitle="Spend the fortune on things worth owning." />
+
+        <Card style={styles.residenceHomeCard} onPress={() => setResidenceOpen(true)}>
+          <View style={styles.residenceHomeTop}>
+            <View>
+              <Text style={styles.residenceKicker}>MY RESIDENCE</Text>
+              <Text style={styles.residenceHomeTitle}>{game.residence ? game.residence.name : 'Build your home base'}</Text>
+              <Text style={styles.residenceHomeSub}>
+                {game.residence
+                  ? compactMoney(game.residenceValue, 2) + ' total value'
+                  : nextResidence
+                    ? 'Start from ' + compactMoney(nextResidence.cost, 1)
+                    : 'Residence progression'}
+              </Text>
+            </View>
+            <Text style={styles.residenceHomeIcon}>{game.residence ? game.residence.icon : '⌂'}</Text>
+          </View>
+
+          {game.residence ? (
+            <View style={styles.residenceHomeStats}>
+              <View>
+                <Text style={styles.residenceStatLabel}>SECURITY</Text>
+                <Text style={styles.residenceStatValue}>Lv {game.residenceSecurity}</Text>
+              </View>
+              <View>
+                <Text style={styles.residenceStatLabel}>STAFF</Text>
+                <Text style={styles.residenceStatValue}>Lv {game.residenceStaff}</Text>
+              </View>
+              <View>
+                <Text style={styles.residenceStatLabel}>IMPROVEMENTS</Text>
+                <Text style={styles.residenceStatValue}>{game.residenceImprovements.filter((x) => x.owned).length}</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.residenceOpenText}>Open residence →</Text>
+          )}
+        </Card>
 
         <View style={styles.showcaseRow}>
           {collectionRows.slice(1, 4).map((group) => (
@@ -767,7 +805,116 @@ function Items({ game }) {
       </ScrollView>
 
       <CollectionModal group={selectedCollection} game={game} onClose={() => setSelectedCollection(null)} />
+      <ResidenceModal open={residenceOpen} game={game} onClose={() => setResidenceOpen(false)} />
     </>
+  );
+}
+
+function ResidenceModal({ open, game, onClose }) {
+  if (!open) return null;
+  const nextResidence = game.residenceCatalog.find((item) => item.next);
+  const ownedImprovements = game.residenceImprovements.filter((item) => item.owned).length;
+
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <SafeAreaView style={styles.safe}>
+        <StatusBar barStyle="dark-content" />
+        <ScrollView contentContainerStyle={styles.modalPage}>
+          <View style={styles.modalPageTop}>
+            <Pressable onPress={onClose}><Text style={styles.backText}>‹</Text></Pressable>
+            <View style={styles.flex}>
+              <Text style={styles.modalPageTitle}>{game.residence ? 'My residence' : 'Residence'}</Text>
+              <Text style={styles.modalPageSub}>Balance: {compactMoney(game.balance, 2)}</Text>
+            </View>
+          </View>
+
+          {game.residence ? (
+            <>
+              <View style={styles.residenceHero}>
+                <Text style={styles.residenceHeroIcon}>{game.residence.icon}</Text>
+                <Text style={styles.residenceHeroName}>{game.residence.name}</Text>
+                <Text style={styles.residenceHeroValue}>{compactMoney(game.residenceValue, 2)}</Text>
+                <Text style={styles.residenceHeroLabel}>total residence value</Text>
+              </View>
+
+              <View style={styles.residenceManageGrid}>
+                <Card style={styles.residenceManageCard}>
+                  <IconBubble tone="blue" size={56}>⌾</IconBubble>
+                  <Text style={styles.residenceManageTitle}>Security</Text>
+                  <Text style={styles.residenceManageLevel}>Level {game.residenceSecurity}</Text>
+                  <Button
+                    small
+                    label={'Upgrade · ' + compactMoney(game.residenceSecurityCost, 1)}
+                    onPress={game.upgradeResidenceSecurity}
+                    disabled={game.balance < game.residenceSecurityCost}
+                  />
+                </Card>
+                <Card style={styles.residenceManageCard}>
+                  <IconBubble tone="mint" size={56}>♟</IconBubble>
+                  <Text style={styles.residenceManageTitle}>Staff</Text>
+                  <Text style={styles.residenceManageLevel}>Level {game.residenceStaff}</Text>
+                  <Button
+                    small
+                    label={'Upgrade · ' + compactMoney(game.residenceStaffCost, 1)}
+                    onPress={game.upgradeResidenceStaff}
+                    disabled={game.balance < game.residenceStaffCost}
+                  />
+                </Card>
+              </View>
+
+              <SectionTitle title="Residence improvements" subtitle={ownedImprovements + ' purchased'} />
+              {game.residenceImprovements.map((item) => (
+                <Card key={item.id} style={!item.unlocked && styles.lockedCard}>
+                  <View style={styles.row}>
+                    <IconBubble tone={item.owned ? 'mint' : 'gold'}>{item.icon}</IconBubble>
+                    <View style={styles.flex}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <Text style={styles.cardSub}>
+                        {item.owned ? 'Purchased' : item.unlocked ? compactMoney(item.cost, 1) : 'Unlock with a better residence'}
+                      </Text>
+                    </View>
+                    <Button
+                      small
+                      secondary={item.owned}
+                      label={item.owned ? 'Owned' : item.unlocked ? 'Buy' : 'Locked'}
+                      onPress={() => game.buyResidenceImprovement(item.id)}
+                      disabled={item.owned || !item.unlocked || game.balance < item.cost}
+                    />
+                  </View>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <View style={styles.emptyResidence}>
+              <Text style={styles.emptyResidenceIcon}>⌂</Text>
+              <Text style={styles.emptyResidenceTitle}>Your empire needs a home.</Text>
+              <Text style={styles.emptyResidenceCopy}>Residences unlock security, staff and permanent upgrades.</Text>
+            </View>
+          )}
+
+          {nextResidence && (
+            <>
+              <SectionTitle title={game.residence ? 'Next residence' : 'Choose your first residence'} subtitle="Each tier unlocks stronger upgrades." />
+              <Card style={styles.nextResidenceCard}>
+                <View style={styles.row}>
+                  <IconBubble tone="blue" size={64}>{nextResidence.icon}</IconBubble>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardTitle}>{nextResidence.name}</Text>
+                    <Text style={styles.cardSub}>{compactMoney(nextResidence.cost, 1)}</Text>
+                  </View>
+                  <Button
+                    small
+                    label={game.residence ? 'Upgrade' : 'Buy'}
+                    onPress={() => game.buyResidenceTier(game.residenceTier + 1)}
+                    disabled={game.balance < nextResidence.cost}
+                  />
+                </View>
+              </Card>
+            </>
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -822,6 +969,7 @@ function Profile({ game }) {
     ['Real estate', game.propertyValue, '#B684C7'],
     ['Crypto', game.cryptoValue, '#71CDB6'],
     ['Collections', game.assetValue, '#6C7FD8'],
+    ['Residence', game.residenceValue, '#236B9A'],
   ];
   const total = Math.max(1, portfolio.reduce((s, x) => s + Math.max(0, x[1]), 0));
 
@@ -873,6 +1021,7 @@ function Profile({ game }) {
         <ProfileStat label="Businesses" value={game.businesses.length.toLocaleString()} />
         <ProfileStat label="Real estate" value={game.properties.reduce((s, p) => s + (p.count || 0), 0).toLocaleString()} />
         <ProfileStat label="Collectibles" value={game.assets.length.toLocaleString()} />
+        <ProfileStat label="Residence" value={game.residence ? game.residence.name : 'None'} />
         <ProfileStat label="Lifetime earned" value={compactMoney(game.totalEarned, 2)} />
         <ProfileStat label="Total taps" value={game.totalClicks.toLocaleString()} />
         <ProfileStat label="Passive income" value={compactMoney(game.passivePerSec, 2) + '/s'} last />
@@ -1079,6 +1228,31 @@ const styles = StyleSheet.create({
   companyMetaLabel: { color: C.muted, fontSize: 10, fontWeight: '850', letterSpacing: 0.8 },
   companyMetaValue: { color: C.text, fontSize: 16, fontWeight: '900', marginTop: 5 },
   nameHint: { color: C.muted, fontSize: 14, lineHeight: 20, marginBottom: 18 },
+
+  residenceHomeCard: { backgroundColor: '#123E3C', padding: 22, overflow: 'hidden' },
+  residenceHomeTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  residenceKicker: { color: '#8EB6AF', fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  residenceHomeTitle: { color: C.white, fontSize: 25, fontWeight: '900', marginTop: 6, maxWidth: 250 },
+  residenceHomeSub: { color: '#A8C7C1', fontSize: 14, marginTop: 5 },
+  residenceHomeIcon: { color: C.white, fontSize: 48, fontWeight: '800' },
+  residenceHomeStats: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 22, paddingTop: 18, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.2)' },
+  residenceStatLabel: { color: '#87AAA4', fontSize: 9, fontWeight: '850', letterSpacing: 0.8 },
+  residenceStatValue: { color: C.white, fontSize: 16, fontWeight: '900', marginTop: 4 },
+  residenceOpenText: { marginTop: 20, color: '#BFE5DC', fontSize: 14, fontWeight: '800' },
+  residenceHero: { minHeight: 240, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#123E3C', padding: 24, marginBottom: 16 },
+  residenceHeroIcon: { fontSize: 78 },
+  residenceHeroName: { color: C.white, fontSize: 26, fontWeight: '900', marginTop: 10 },
+  residenceHeroValue: { color: C.white, fontSize: 34, fontWeight: '900', marginTop: 14 },
+  residenceHeroLabel: { color: '#9CC3BC', fontSize: 13, marginTop: 2 },
+  residenceManageGrid: { flexDirection: 'row', gap: 10 },
+  residenceManageCard: { flex: 1, alignItems: 'center', paddingHorizontal: 10 },
+  residenceManageTitle: { color: C.text, fontSize: 18, fontWeight: '850', marginTop: 10 },
+  residenceManageLevel: { color: C.muted, fontSize: 14, marginTop: 3, marginBottom: 13 },
+  emptyResidence: { alignItems: 'center', paddingVertical: 55, paddingHorizontal: 24 },
+  emptyResidenceIcon: { fontSize: 78, color: C.mint },
+  emptyResidenceTitle: { fontSize: 25, fontWeight: '900', color: C.text, marginTop: 16, textAlign: 'center' },
+  emptyResidenceCopy: { color: C.muted, fontSize: 15, lineHeight: 21, marginTop: 8, textAlign: 'center' },
+  nextResidenceCard: { backgroundColor: C.blueSoft },
 
   showcaseRow: { flexDirection: 'row', gap: 9, marginBottom: 8 },
   showcaseCard: { flex: 1, marginBottom: 0, alignItems: 'center', paddingHorizontal: 8 },
