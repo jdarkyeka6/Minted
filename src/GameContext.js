@@ -12,36 +12,101 @@ const clickTiers = [1, 3, 10, 50, 250, 1000, 5000, 25000, 100000, 500000];
 const clickCosts = [0, 50, 400, 4000, 30000, 250000, 2000000, 15000000, 120000000, 900000000];
 
 const businessCatalogData = [
-  { id: 'cart', name: 'Street Cart', icon: '🥤', industry: 'Food', cost: 150, baseIncome: 0.45, margin: 0.42, staff: 2 },
-  { id: 'coffee', name: 'Coffee House', icon: '☕️', industry: 'Food', cost: 2500, baseIncome: 5, margin: 0.34, staff: 6 },
-  { id: 'studio', name: 'Design Studio', icon: '🎨', industry: 'Creative', cost: 22000, baseIncome: 38, margin: 0.48, staff: 12 },
-  { id: 'logistics', name: 'Atlas Logistics', icon: '🚚', industry: 'Transport', cost: 160000, baseIncome: 230, margin: 0.29, staff: 28 },
-  { id: 'software', name: 'Orbit Software', icon: '💻', industry: 'Technology', cost: 1400000, baseIncome: 1800, margin: 0.58, staff: 45 },
-  { id: 'factory', name: 'Forge Industries', icon: '🏭', industry: 'Manufacturing', cost: 12000000, baseIncome: 16500, margin: 0.25, staff: 95 },
-  { id: 'bank', name: 'Crown Capital', icon: '🏦', industry: 'Finance', cost: 110000000, baseIncome: 145000, margin: 0.51, staff: 180 },
-  { id: 'airline', name: 'Nova Air', icon: '✈️', industry: 'Transport', cost: 950000000, baseIncome: 1100000, margin: 0.18, staff: 620 },
-  { id: 'space', name: 'Asterion Space', icon: '🚀', industry: 'Technology', cost: 8500000000, baseIncome: 8800000, margin: 0.31, staff: 1300 },
+  { id: 'shop', name: 'Shop', icon: '🛍️', industry: 'Retail', cost: 4800, baseIncome: 3.4, margin: 0.34, staff: 3 },
+  { id: 'taxi', name: 'Taxi Company', icon: '🚕', industry: 'Transport', cost: 10000, baseIncome: 7.8, margin: 0.31, staff: 5 },
+  { id: 'shipping', name: 'Shipping Company', icon: '🚚', industry: 'Logistics', cost: 22000, baseIncome: 17, margin: 0.28, staff: 9 },
+  { id: 'factory', name: 'Factory', icon: '🏭', industry: 'Manufacturing', cost: 52000, baseIncome: 42, margin: 0.25, staff: 18 },
+  { id: 'construction', name: 'Construction Company', icon: '🏗️', industry: 'Construction', cost: 125000, baseIncome: 105, margin: 0.27, staff: 25 },
+  { id: 'dealership', name: 'Car Dealership', icon: '🚘', industry: 'Automotive', cost: 300000, baseIncome: 270, margin: 0.24, staff: 32 },
+  { id: 'software', name: 'IT Company', icon: '💻', industry: 'Technology', cost: 950000, baseIncome: 930, margin: 0.56, staff: 28 },
+  { id: 'hotel', name: 'Hotel Group', icon: '🏨', industry: 'Hospitality', cost: 4200000, baseIncome: 4300, margin: 0.36, staff: 90 },
+  { id: 'bank', name: 'Bank', icon: '🏦', industry: 'Finance', cost: 18000000, baseIncome: 21000, margin: 0.49, staff: 160 },
+  { id: 'sports', name: 'Sports Club', icon: '🏟️', industry: 'Sport', cost: 65000000, baseIncome: 88000, margin: 0.29, staff: 220 },
+  { id: 'energy', name: 'Energy Company', icon: '⛽️', industry: 'Energy', cost: 280000000, baseIncome: 410000, margin: 0.33, staff: 410 },
+  { id: 'airline', name: 'Airline', icon: '✈️', industry: 'Aviation', cost: 1300000000, baseIncome: 2050000, margin: 0.19, staff: 980 },
+  { id: 'holding', name: 'Holding Company', icon: '📊', industry: 'Investments', cost: 6500000000, baseIncome: 11200000, margin: 0.61, staff: 250 },
+  { id: 'space', name: 'Space Company', icon: '🚀', industry: 'Aerospace', cost: 28000000000, baseIncome: 52000000, margin: 0.38, staff: 1800 },
+];
+
+const acquisitionTargetData = [
+  { id: 'cobalt-corner', name: 'Cobalt Corner', typeId: 'shop', icon: '🛍️', industry: 'Retail', region: 'Perth', value: 18000, incomePerSec: 16, units: 3, level: 2, managerLevel: 1, employees: 14, reputation: 67, growth: 7 },
+  { id: 'swiftline-cabs', name: 'Swiftline Cabs', typeId: 'taxi', icon: '🚕', industry: 'Transport', region: 'Sydney', value: 52000, incomePerSec: 48, units: 5, level: 3, managerLevel: 1, employees: 31, reputation: 72, growth: 9 },
+  { id: 'harbor-haul', name: 'Harbor Haul', typeId: 'shipping', icon: '🚚', industry: 'Logistics', region: 'Fremantle', value: 165000, incomePerSec: 170, units: 7, level: 3, managerLevel: 2, employees: 74, reputation: 75, growth: 8 },
+  { id: 'ironvale-works', name: 'Ironvale Works', typeId: 'factory', icon: '🏭', industry: 'Manufacturing', region: 'Melbourne', value: 610000, incomePerSec: 720, units: 4, level: 5, managerLevel: 2, employees: 180, reputation: 71, growth: 12 },
+  { id: 'northspan-build', name: 'Northspan Build', typeId: 'construction', icon: '🏗️', industry: 'Construction', region: 'Brisbane', value: 1800000, incomePerSec: 2400, units: 6, level: 5, managerLevel: 3, employees: 310, reputation: 79, growth: 14 },
+  { id: 'apex-motors', name: 'Apex Motors', typeId: 'dealership', icon: '🚘', industry: 'Automotive', region: 'Gold Coast', value: 6200000, incomePerSec: 9800, units: 8, level: 6, managerLevel: 3, employees: 420, reputation: 83, growth: 16 },
+  { id: 'brightbyte', name: 'BrightByte', typeId: 'software', icon: '💻', industry: 'Technology', region: 'Singapore', value: 22000000, incomePerSec: 44000, units: 3, level: 8, managerLevel: 4, employees: 350, reputation: 88, growth: 24 },
+  { id: 'vanta-stays', name: 'Vanta Stays', typeId: 'hotel', icon: '🏨', industry: 'Hospitality', region: 'Tokyo', value: 78000000, incomePerSec: 145000, units: 12, level: 7, managerLevel: 5, employees: 1300, reputation: 86, growth: 15 },
+  { id: 'meridian-capital', name: 'Meridian Capital', typeId: 'bank', icon: '🏦', industry: 'Finance', region: 'London', value: 340000000, incomePerSec: 760000, units: 18, level: 9, managerLevel: 6, employees: 4200, reputation: 91, growth: 18 },
+  { id: 'vertex-athletics', name: 'Vertex Athletics', typeId: 'sports', icon: '🏟️', industry: 'Sport', region: 'Los Angeles', value: 1200000000, incomePerSec: 3200000, units: 9, level: 10, managerLevel: 6, employees: 5800, reputation: 94, growth: 20 },
+  { id: 'solstice-energy', name: 'Solstice Energy', typeId: 'energy', icon: '⛽️', industry: 'Energy', region: 'Dubai', value: 5200000000, incomePerSec: 15800000, units: 21, level: 12, managerLevel: 7, employees: 12400, reputation: 92, growth: 17 },
+  { id: 'altair-airways', name: 'Altair Airways', typeId: 'airline', icon: '✈️', industry: 'Aviation', region: 'Global', value: 21000000000, incomePerSec: 69000000, units: 30, level: 14, managerLevel: 8, employees: 39000, reputation: 95, growth: 21 },
+  { id: 'monolith-holdings', name: 'Monolith Holdings', typeId: 'holding', icon: '📊', industry: 'Investments', region: 'Global', value: 88000000000, incomePerSec: 360000000, units: 16, level: 16, managerLevel: 9, employees: 8400, reputation: 97, growth: 26 },
+  { id: 'zenith-orbital', name: 'Zenith Orbital', typeId: 'space', icon: '🚀', industry: 'Aerospace', region: 'Orbit', value: 420000000000, incomePerSec: 1900000000, units: 11, level: 18, managerLevel: 10, employees: 26000, reputation: 99, growth: 31 },
 ];
 
 const propertyCatalogData = [
-  { id: 'studioFlat', name: 'Studio Apartment', location: 'Perth', icon: '🏢', cost: 15000, rentPerSec: 1.4 },
-  { id: 'suburban', name: 'Suburban House', location: 'Melbourne', icon: '🏡', cost: 85000, rentPerSec: 8.5 },
-  { id: 'cityUnit', name: 'City Tower Unit', location: 'Sydney', icon: '🌆', cost: 650000, rentPerSec: 78 },
-  { id: 'beachVilla', name: 'Beach Villa', location: 'Gold Coast', icon: '🌴', cost: 4800000, rentPerSec: 620 },
-  { id: 'hotel', name: 'Boutique Hotel', location: 'Singapore', icon: '🏨', cost: 42000000, rentPerSec: 6100 },
-  { id: 'tower', name: 'Office Tower', location: 'New York', icon: '🏙️', cost: 460000000, rentPerSec: 72000 },
-  { id: 'resort', name: 'Private Island Resort', location: 'Maldives', icon: '🏝️', cost: 5200000000, rentPerSec: 900000 },
+  { id: 'parking', name: 'Parking Space', location: 'Perth', icon: '🅿️', cost: 7500, rentPerSec: 0.55 },
+  { id: 'studioFlat', name: 'Studio Apartment', location: 'Perth', icon: '🏢', cost: 42000, rentPerSec: 3.4 },
+  { id: 'suburban', name: 'Suburban House', location: 'Melbourne', icon: '🏡', cost: 185000, rentPerSec: 16 },
+  { id: 'townhouse', name: 'Townhouse', location: 'Brisbane', icon: '🏘️', cost: 480000, rentPerSec: 46 },
+  { id: 'cityUnit', name: 'City Tower Unit', location: 'Sydney', icon: '🌆', cost: 1450000, rentPerSec: 155 },
+  { id: 'beachVilla', name: 'Beach Villa', location: 'Gold Coast', icon: '🌴', cost: 6200000, rentPerSec: 760 },
+  { id: 'penthouse', name: 'Luxury Penthouse', location: 'Singapore', icon: '🌃', cost: 24000000, rentPerSec: 3400 },
+  { id: 'hotel', name: 'Boutique Hotel', location: 'Tokyo', icon: '🏨', cost: 95000000, rentPerSec: 15000 },
+  { id: 'tower', name: 'Office Tower', location: 'New York', icon: '🏙️', cost: 620000000, rentPerSec: 112000 },
+  { id: 'resort', name: 'Island Resort', location: 'Maldives', icon: '🏝️', cost: 4800000000, rentPerSec: 980000 },
+  { id: 'district', name: 'Commercial District', location: 'Dubai', icon: '🌇', cost: 26000000000, rentPerSec: 5900000 },
+  { id: 'skyline', name: 'Skyline Portfolio', location: 'Global', icon: '🌐', cost: 125000000000, rentPerSec: 32000000 },
 ];
 
 const assetCatalogData = [
-  { id: 'sneakers', name: 'Collector Sneakers', icon: '👟', cost: 5000, prestige: 5 },
-  { id: 'watch', name: 'Mechanical Watch', icon: '⌚️', cost: 35000, prestige: 18 },
-  { id: 'sportsCar', name: 'Sports Car', icon: '🏎️', cost: 250000, prestige: 60 },
-  { id: 'supercar', name: 'Hypercar', icon: '🔥', cost: 2500000, prestige: 180 },
-  { id: 'yacht', name: 'Superyacht', icon: '🛥️', cost: 18000000, prestige: 520 },
-  { id: 'jet', name: 'Private Jet', icon: '🛩️', cost: 75000000, prestige: 1400 },
-  { id: 'island', name: 'Private Island', icon: '🌊', cost: 550000000, prestige: 5000 },
-  { id: 'moon', name: 'Lunar Residence', icon: '🌕', cost: 9000000000, prestige: 35000 },
+  { id: 'sneakers', name: 'Collector Sneakers', icon: '👟', category: 'style', cost: 5000, prestige: 5 },
+  { id: 'watch', name: 'Mechanical Watch', icon: '⌚️', category: 'style', cost: 35000, prestige: 18 },
+  { id: 'jewels', name: 'Gemstone Set', icon: '💎', category: 'style', cost: 180000, prestige: 55 },
+  { id: 'rareCoin', name: 'Rare Coin', icon: '🪙', category: 'style', cost: 650000, prestige: 150 },
+
+  { id: 'classicCar', name: 'Classic Coupe', icon: '🚗', category: 'cars', cost: 85000, prestige: 28 },
+  { id: 'sportsCar', name: 'Sports Car', icon: '🏎️', category: 'cars', cost: 250000, prestige: 60 },
+  { id: 'supercar', name: 'Hypercar', icon: '🔥', category: 'cars', cost: 2500000, prestige: 180 },
+  { id: 'prototypeCar', name: 'Concept Hypercar', icon: '⚡️', category: 'cars', cost: 18000000, prestige: 650 },
+
+  { id: 'speedboat', name: 'Performance Boat', icon: '🚤', category: 'yachts', cost: 600000, prestige: 90 },
+  { id: 'yacht', name: 'Superyacht', icon: '🛥️', category: 'yachts', cost: 18000000, prestige: 520 },
+  { id: 'megayacht', name: 'Mega Yacht', icon: '⚓️', category: 'yachts', cost: 210000000, prestige: 4200 },
+
+  { id: 'propPlane', name: 'Private Prop Plane', icon: '🛩️', category: 'aircraft', cost: 1200000, prestige: 130 },
+  { id: 'jet', name: 'Private Jet', icon: '✈️', category: 'aircraft', cost: 75000000, prestige: 1400 },
+  { id: 'airliner', name: 'Private Airliner', icon: '🛫', category: 'aircraft', cost: 650000000, prestige: 9200 },
+
+  { id: 'tinyIsland', name: 'Tiny Private Island', icon: '🏝️', category: 'islands', cost: 90000000, prestige: 2200 },
+  { id: 'island', name: 'Private Island', icon: '🌊', category: 'islands', cost: 550000000, prestige: 5000 },
+  { id: 'islandEstate', name: 'Island Estate', icon: '🌴', category: 'islands', cost: 6200000000, prestige: 48000 },
+
+  { id: 'painting', name: 'Masterwork Painting', icon: '🖼️', category: 'collectibles', cost: 450000, prestige: 95 },
+  { id: 'signature', name: 'Historic Signature', icon: '✍️', category: 'collectibles', cost: 5000000, prestige: 700 },
+  { id: 'meteorite', name: 'Meteorite Fragment', icon: '☄️', category: 'collectibles', cost: 42000000, prestige: 3500 },
+  { id: 'crown', name: 'Royal Relic', icon: '👑', category: 'collectibles', cost: 950000000, prestige: 28000 },
+];
+
+const residenceCatalogData = [
+  { id: 'apartment', name: 'City Apartment', icon: '🏢', cost: 75000 },
+  { id: 'penthouse', name: 'Skyline Penthouse', icon: '🌃', cost: 1200000 },
+  { id: 'estate', name: 'Coastal Estate', icon: '🏡', cost: 18000000 },
+  { id: 'compound', name: 'Private Compound', icon: '🏰', cost: 280000000 },
+  { id: 'citadel', name: 'Billionaire Citadel', icon: '🏯', cost: 4200000000 },
+];
+
+const residenceImprovementData = [
+  { id: 'garage', name: 'Collector Garage', icon: '🚘', cost: 120000, minTier: 0 },
+  { id: 'gym', name: 'Private Gym', icon: '🏋️', cost: 260000, minTier: 0 },
+  { id: 'pool', name: 'Infinity Pool', icon: '🏊', cost: 850000, minTier: 1 },
+  { id: 'cinema', name: 'Private Cinema', icon: '🎬', cost: 1600000, minTier: 1 },
+  { id: 'vault', name: 'High Security Vault', icon: '🔐', cost: 12000000, minTier: 2 },
+  { id: 'helipad', name: 'Helipad', icon: '🚁', cost: 38000000, minTier: 2 },
+  { id: 'bunker', name: 'Underground Bunker', icon: '🛡️', cost: 240000000, minTier: 3 },
+  { id: 'hangar', name: 'Private Hangar', icon: '🛩️', cost: 620000000, minTier: 3 },
+  { id: 'launchpad', name: 'Launch Pad', icon: '🚀', cost: 6500000000, minTier: 4 },
 ];
 
 const defaultStocks = [
@@ -51,6 +116,10 @@ const defaultStocks = [
   { id: 'ATL', symbol: 'ATL', name: 'Atlas Retail', icon: 'A', price: 61.1, changePct: 0, shares: 0, avgCost: 0, volatility: 0.02, drift: 0.0005, yieldRate: 0.00016 },
   { id: 'ORB', symbol: 'ORB', name: 'Orbit Systems', icon: '◉', price: 133.75, changePct: 0, shares: 0, avgCost: 0, volatility: 0.03, drift: 0.0012, yieldRate: 0.00008 },
   { id: 'CND', symbol: 'CND', name: 'Cinder Labs', icon: 'C', price: 18.95, changePct: 0, shares: 0, avgCost: 0, volatility: 0.06, drift: 0.0018, yieldRate: 0.00002 },
+  { id: 'AUR', symbol: 'AUR', name: 'Aurora Foods', icon: 'A', price: 74.2, changePct: 0, shares: 0, avgCost: 0, volatility: 0.018, drift: 0.0006, yieldRate: 0.0002 },
+  { id: 'PLS', symbol: 'PLS', name: 'Pulse Health', icon: '+', price: 119.8, changePct: 0, shares: 0, avgCost: 0, volatility: 0.028, drift: 0.001, yieldRate: 0.00009 },
+  { id: 'FRG', symbol: 'FRG', name: 'Forge Global', icon: 'F', price: 210.4, changePct: 0, shares: 0, avgCost: 0, volatility: 0.022, drift: 0.0009, yieldRate: 0.00013 },
+  { id: 'SKY', symbol: 'SKY', name: 'Skyline Media', icon: 'S', price: 33.7, changePct: 0, shares: 0, avgCost: 0, volatility: 0.05, drift: 0.0014, yieldRate: 0.00003 },
 ];
 
 const defaultCrypto = [
@@ -58,6 +127,10 @@ const defaultCrypto = [
   { id: 'NOVA', symbol: 'NOVA', name: 'Nova', icon: '✧', price: 8.75, changePct: 0, units: 0, avgCost: 0, volatility: 0.11, drift: 0.0015 },
   { id: 'VEC', symbol: 'VEC', name: 'Vector', icon: '△', price: 61.8, changePct: 0, units: 0, avgCost: 0, volatility: 0.065, drift: 0.0008 },
   { id: 'TIDE', symbol: 'TIDE', name: 'Tide Protocol', icon: '≈', price: 3.2, changePct: 0, units: 0, avgCost: 0, volatility: 0.14, drift: 0.002 },
+  { id: 'EMBER', symbol: 'EMBER', name: 'Ember', icon: '◆', price: 0.82, changePct: 0, units: 0, avgCost: 0, volatility: 0.17, drift: 0.0018 },
+  { id: 'LUMA', symbol: 'LUMA', name: 'Luma', icon: '◌', price: 145.6, changePct: 0, units: 0, avgCost: 0, volatility: 0.055, drift: 0.0007 },
+  { id: 'ARC', symbol: 'ARC', name: 'Arc Network', icon: 'A', price: 14.15, changePct: 0, units: 0, avgCost: 0, volatility: 0.1, drift: 0.0012 },
+  { id: 'PIX', symbol: 'PIX', name: 'Pixel', icon: 'P', price: 0.18, changePct: 0, units: 0, avgCost: 0, volatility: 0.2, drift: 0.0024 },
 ];
 
 const defaultJobs = [
@@ -108,6 +181,18 @@ const mergeMarket = (defaults, saved, quantityKey) =>
     };
   });
 
+const legacyBusinessTypeMap = {
+  cart: 'shop',
+  coffee: 'shop',
+  studio: 'software',
+  logistics: 'shipping',
+  software: 'software',
+  factory: 'factory',
+  bank: 'bank',
+  airline: 'airline',
+  space: 'space',
+};
+
 const addActivityItem = (setActivity, text, type = 'money') => {
   setActivity((items) => [
     { id: `${Date.now()}-${Math.random()}`, text, type, at: Date.now() },
@@ -122,8 +207,15 @@ export function GameProvider({ children }) {
   const [totalClicks, setTotalClicks] = useState(0);
   const [clickTier, setClickTier] = useState(0);
   const [businesses, setBusinesses] = useState([]);
+  const [acquiredTargetIds, setAcquiredTargetIds] = useState([]);
+  const [acquisitionHistory, setAcquisitionHistory] = useState([]);
+  const [mergerCount, setMergerCount] = useState(0);
   const [properties, setProperties] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [residenceTier, setResidenceTier] = useState(-1);
+  const [residenceSecurity, setResidenceSecurity] = useState(0);
+  const [residenceStaff, setResidenceStaff] = useState(0);
+  const [residenceImprovementsOwned, setResidenceImprovementsOwned] = useState([]);
   const [stocks, setStocks] = useState(clone(defaultStocks));
   const [crypto, setCrypto] = useState(clone(defaultCrypto));
   const [jobs, setJobs] = useState(clone(defaultJobs));
@@ -158,18 +250,31 @@ export function GameProvider({ children }) {
           const migratedStocks = mergeMarket(defaultStocks, save.stocks, 'shares');
           const migratedCrypto = mergeMarket(defaultCrypto, save.crypto, 'units');
           const migratedJobs = defaultJobs.map((base) => ({ ...base, ...(save.jobs?.find((job) => job.id === base.id) || {}) }));
-          const migratedBusinesses = (save.businesses || []).map((business) => {
-            const base = businessCatalogData.find((item) => item.id === business.id);
+          const migratedBusinesses = (save.businesses || []).map((business, index) => {
+            const originalType = business.typeId || business.id;
+            const mappedType = legacyBusinessTypeMap[originalType] || originalType;
+            const base = businessCatalogData.find((item) => item.id === mappedType);
+            if (!base) return null;
             const managerLevel = business.managerLevel || 0;
+            const isLegacyInstance = !business.typeId;
             return {
               ...business,
+              id: isLegacyInstance ? `${mappedType}-legacy-${index}` : business.id,
+              typeId: mappedType,
+              name: business.name || base.name,
+              icon: base.icon,
+              industry: base.industry,
               level: business.level || 1,
               units: business.units || 1,
               multiplier: business.multiplier || 1,
               managerLevel,
-              managerCost: business.managerCost || Math.ceil((base?.cost || Math.max(1, business.value || 1)) * 2.4 * Math.pow(2.7, managerLevel)),
+              incomePerSec: Number(business.incomePerSec || base.baseIncome),
+              unitCost: Number(business.unitCost || Math.ceil(base.cost * 0.6)),
+              upgradeCost: Number(business.upgradeCost || Math.ceil(base.cost * 1.25)),
+              managerCost: Number(business.managerCost || Math.ceil(base.cost * 2.4 * Math.pow(2.7, managerLevel))),
+              value: Number(business.value || base.cost),
             };
-          });
+          }).filter(Boolean);
           const savedAt = save.lastSavedAt || Date.now();
           const elapsedSeconds = Math.min(OFFLINE_CAP_SECONDS, Math.max(0, (Date.now() - savedAt) / 1000));
           const offline = sourceKey === 'minted-save-v1'
@@ -181,8 +286,15 @@ export function GameProvider({ children }) {
           setTotalClicks(Number(save.totalClicks || 0));
           setClickTier(Math.min(Number(save.clickTier || 0), clickTiers.length - 1));
           setBusinesses(migratedBusinesses);
+          setAcquiredTargetIds(save.acquiredTargetIds || []);
+          setAcquisitionHistory(save.acquisitionHistory || []);
+          setMergerCount(Number(save.mergerCount || 0));
           setProperties(save.properties || []);
-          setAssets(save.assets || []);
+          setAssets((save.assets || []).filter((owned) => assetCatalogData.some((item) => item.id === owned.id)));
+          setResidenceTier(Number.isFinite(Number(save.residenceTier)) ? Number(save.residenceTier) : -1);
+          setResidenceSecurity(Number(save.residenceSecurity || 0));
+          setResidenceStaff(Number(save.residenceStaff || 0));
+          setResidenceImprovementsOwned(save.residenceImprovementsOwned || []);
           setStocks(migratedStocks);
           setCrypto(migratedCrypto);
           setJobs(migratedJobs);
@@ -269,8 +381,15 @@ export function GameProvider({ children }) {
           totalClicks,
           clickTier,
           businesses,
+          acquiredTargetIds,
+          acquisitionHistory,
+          mergerCount,
           properties,
           assets,
+          residenceTier,
+          residenceSecurity,
+          residenceStaff,
+          residenceImprovementsOwned,
           stocks,
           crypto,
           jobs,
@@ -294,8 +413,15 @@ export function GameProvider({ children }) {
     totalClicks,
     clickTier,
     businesses,
+    acquiredTargetIds,
+    acquisitionHistory,
+    mergerCount,
     properties,
     assets,
+    residenceTier,
+    residenceSecurity,
+    residenceStaff,
+    residenceImprovementsOwned,
     stocks,
     crypto,
     jobs,
@@ -314,7 +440,21 @@ export function GameProvider({ children }) {
   const propertyValue = useMemo(() => properties.reduce((sum, property) => sum + (property.value || 0), 0), [properties]);
   const assetValue = useMemo(() => assets.reduce((sum, asset) => sum + (asset.cost || 0), 0), [assets]);
   const prestige = useMemo(() => assets.reduce((sum, asset) => sum + (asset.prestige || 0), 0), [assets]);
-  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue - taxDue);
+  const residence = residenceTier >= 0 ? residenceCatalogData[residenceTier] : null;
+  const residenceBaseValue = residenceTier >= 0
+    ? residenceCatalogData.slice(0, residenceTier + 1).reduce((sum, item) => sum + item.cost, 0)
+    : 0;
+  const residenceImprovementValue = residenceImprovementData
+    .filter((item) => residenceImprovementsOwned.includes(item.id))
+    .reduce((sum, item) => sum + item.cost, 0);
+  const residenceValue = residenceBaseValue + residenceImprovementValue;
+  const residenceSecurityCost = residence
+    ? Math.ceil(Math.max(1500, residence.cost * 0.04) * Math.pow(1.55, residenceSecurity))
+    : 0;
+  const residenceStaffCost = residence
+    ? Math.ceil(Math.max(1200, residence.cost * 0.03) * Math.pow(1.5, residenceStaff))
+    : 0;
+  const netWorth = Math.max(0, balance + businessValue + propertyValue + marketValue + assetValue + residenceValue - taxDue);
 
   const rankIndex = rankTiers.reduce((best, tier, index) => netWorth >= tier.min ? index : best, 0);
   const rank = rankTiers[rankIndex];
@@ -331,16 +471,53 @@ export function GameProvider({ children }) {
 
   const businessCatalog = businessCatalogData.map((business, index) => ({
     ...business,
-    unlocked: index === 0 || netWorth >= business.cost * 0.35,
+    unlocked: index === 0 || netWorth >= business.cost * 0.22,
   }));
+  const acquisitionTargets = acquisitionTargetData.map((target) => {
+    const sameTypeCount = businesses.filter((business) => (business.typeId || business.id) === target.typeId).length;
+    const synergyPct = clamp(sameTypeCount * 0.05, 0, 0.30);
+    return {
+      ...target,
+      synergyPct,
+      projectedIncome: target.incomePerSec * (1 + synergyPct),
+      acquired: acquiredTargetIds.includes(target.id),
+      unlocked: netWorth >= target.value * 0.12,
+    };
+  });
+
+  const mergerGroups = businessCatalogData.map((base) => {
+    const companies = businesses.filter((business) => (business.typeId || business.id) === base.id);
+    return {
+      typeId: base.id,
+      name: base.name,
+      icon: base.icon,
+      industry: base.industry,
+      companies,
+      canMerge: companies.length >= 2,
+    };
+  }).filter((group) => group.companies.length >= 2);
+
   const propertyCatalog = propertyCatalogData.map((property, index) => ({
     ...property,
-    unlocked: index === 0 || netWorth >= property.cost * 0.3,
+    unlocked: index === 0 || netWorth >= property.cost * 0.2,
   }));
   const assetCatalog = assetCatalogData.map((asset, index) => ({
     ...asset,
-    unlocked: index === 0 || netWorth >= asset.cost * 0.25,
+    unlocked: index === 0 || netWorth >= asset.cost * 0.18,
     owned: assets.some((owned) => owned.id === asset.id),
+  }));
+
+  const residenceCatalog = residenceCatalogData.map((item, index) => ({
+    ...item,
+    owned: index <= residenceTier,
+    current: index === residenceTier,
+    unlocked: index === 0 || residenceTier >= index - 1,
+    next: index === residenceTier + 1,
+  }));
+  const residenceImprovements = residenceImprovementData.map((item) => ({
+    ...item,
+    owned: residenceImprovementsOwned.includes(item.id),
+    unlocked: residenceTier >= item.minTier,
   }));
 
   const dailyAvailable = lastDailyClaim !== todayKey();
@@ -351,9 +528,12 @@ export function GameProvider({ children }) {
     { id: 'business', title: 'Founder', detail: 'Open your first business', reward: 1250, unlocked: businesses.length > 0 },
     { id: 'investor', title: 'Investor', detail: 'Own any stock or crypto', reward: 2500, unlocked: stocks.some((s) => s.shares > 0) || crypto.some((c) => c.units > 0) },
     { id: 'landlord', title: 'Landlord', detail: 'Buy your first property', reward: 5000, unlocked: properties.length > 0 },
+    { id: 'residence', title: 'Home base', detail: 'Buy your first residence', reward: 10000, unlocked: residenceTier >= 0 },
     { id: '100k', title: 'Six figures', detail: 'Reach $100K net worth', reward: 20000, unlocked: netWorth >= 100000 },
     { id: 'million', title: 'Millionaire', detail: 'Reach $1M net worth', reward: 150000, unlocked: netWorth >= 1000000 },
     { id: 'mogul', title: 'Portfolio monster', detail: 'Own 5 businesses or properties', reward: 500000, unlocked: businesses.length + properties.length >= 5 },
+    { id: 'dealmaker', title: 'Deal maker', detail: 'Acquire a competitor', reward: 750000, unlocked: acquisitionHistory.length > 0 },
+    { id: 'merger', title: 'Consolidator', detail: 'Complete a company merger', reward: 1500000, unlocked: mergerCount > 0 },
     { id: 'billion', title: 'Billion club', detail: 'Reach $1B net worth', reward: 25000000, unlocked: netWorth >= 1000000000 },
   ].map((achievement) => ({
     ...achievement,
@@ -379,12 +559,15 @@ export function GameProvider({ children }) {
     addActivityItem(setActivity, `Tap power upgraded to $${nextClickValue.toLocaleString()} per tap.`, 'upgrade');
   };
 
-  const buyBusiness = (id) => {
+  const buyBusiness = (id, customName = '') => {
     const base = businessCatalog.find((business) => business.id === id);
-    if (!base || !base.unlocked || businesses.some((business) => business.id === id) || !spend(base.cost)) return;
+    if (!base || !base.unlocked || !spend(base.cost)) return false;
+    const companyId = `${base.id}-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const chosenName = String(customName || '').trim().slice(0, 28) || base.name;
     setBusinesses((items) => [...items, {
-      id: base.id,
-      name: base.name,
+      id: companyId,
+      typeId: base.id,
+      name: chosenName,
       icon: base.icon,
       industry: base.industry,
       units: 1,
@@ -397,12 +580,13 @@ export function GameProvider({ children }) {
       managerCost: Math.ceil(base.cost * 2.4),
       value: base.cost,
     }]);
-    addActivityItem(setActivity, `${base.name} launched.`, 'business');
+    addActivityItem(setActivity, `${chosenName} launched.`, 'business');
+    return true;
   };
 
   const expandBusiness = (id) => {
     const owned = businesses.find((business) => business.id === id);
-    const base = businessCatalogData.find((business) => business.id === id);
+    const base = businessCatalogData.find((business) => business.id === (owned?.typeId || owned?.id));
     if (!owned || !base || !spend(owned.unitCost)) return;
     setBusinesses((items) => items.map((business) => business.id === id ? {
       ...business,
@@ -443,6 +627,75 @@ export function GameProvider({ children }) {
     addActivityItem(setActivity, `${owned.name} hired a stronger management team.`, 'upgrade');
   };
 
+  const acquireTarget = (id) => {
+    const target = acquisitionTargets.find((item) => item.id === id);
+    const base = businessCatalogData.find((item) => item.id === target?.typeId);
+    if (!target || !base || target.acquired || !target.unlocked || !spend(target.value)) return false;
+
+    const companyId = `${target.typeId}-acq-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+    const projectedIncome = target.projectedIncome;
+    setBusinesses((items) => [...items, {
+      id: companyId,
+      typeId: target.typeId,
+      name: target.name,
+      icon: target.icon,
+      industry: target.industry,
+      units: target.units,
+      level: target.level,
+      multiplier: Math.max(1, projectedIncome / Math.max(0.01, base.baseIncome * target.units)),
+      managerLevel: target.managerLevel,
+      incomePerSec: projectedIncome,
+      unitCost: Math.ceil(base.cost * 0.85 * Math.max(1, target.units * 0.35)),
+      upgradeCost: Math.ceil(target.value * 0.22),
+      managerCost: Math.ceil(target.value * 0.31),
+      value: target.value,
+      acquiredFrom: target.id,
+    }]);
+    setAcquiredTargetIds((items) => [...items, target.id]);
+    setAcquisitionHistory((items) => [{
+      id: `${target.id}-${Date.now()}`,
+      targetId: target.id,
+      name: target.name,
+      price: target.value,
+      projectedIncome,
+      synergyPct: target.synergyPct,
+      at: Date.now(),
+    }, ...items].slice(0, 30));
+    addActivityItem(setActivity, `${target.name} acquired for $${Math.round(target.value).toLocaleString()}.`, 'business');
+    return true;
+  };
+
+  const mergeBusinesses = (typeId) => {
+    const candidates = businesses.filter((business) => (business.typeId || business.id) === typeId);
+    if (candidates.length < 2) return false;
+    const primary = candidates[0];
+    const secondary = candidates[1];
+    const mergedIncome = (primary.incomePerSec + secondary.incomePerSec) * 1.12;
+    const mergedValue = (primary.value || 0) + (secondary.value || 0);
+    const mergedName = primary.name.endsWith(' Group') ? primary.name : `${primary.name} Group`;
+
+    setBusinesses((items) => items
+      .filter((business) => business.id !== secondary.id)
+      .map((business) => business.id === primary.id ? {
+        ...business,
+        name: mergedName,
+        units: (primary.units || 1) + (secondary.units || 1),
+        level: Math.max(primary.level || 1, secondary.level || 1) + 1,
+        managerLevel: Math.max(primary.managerLevel || 0, secondary.managerLevel || 0),
+        multiplier: Math.max(primary.multiplier || 1, secondary.multiplier || 1) * 1.08,
+        incomePerSec: mergedIncome,
+        value: mergedValue,
+        unitCost: Math.ceil(Math.max(primary.unitCost || 0, secondary.unitCost || 0) * 1.2),
+        upgradeCost: Math.ceil(Math.max(primary.upgradeCost || 0, secondary.upgradeCost || 0) * 1.25),
+        managerCost: Math.ceil(Math.max(primary.managerCost || 0, secondary.managerCost || 0) * 1.2),
+        mergerCount: (primary.mergerCount || 0) + (secondary.mergerCount || 0) + 1,
+      } : business));
+
+    setMergerCount((value) => value + 1);
+    addActivityItem(setActivity, `${primary.name} merged with ${secondary.name}. Income jumped 12% from synergies.`, 'business');
+    return true;
+  };
+
   const buyProperty = (id) => {
     const base = propertyCatalog.find((property) => property.id === id);
     if (!base || !base.unlocked || !spend(base.cost)) return;
@@ -465,6 +718,36 @@ export function GameProvider({ children }) {
     if (!item || item.owned || !item.unlocked || !spend(item.cost)) return;
     setAssets((items) => [...items, item]);
     addActivityItem(setActivity, `${item.name} added to the collection.`, 'asset');
+  };
+
+  const buyResidenceTier = (index) => {
+    const item = residenceCatalogData[index];
+    if (!item || index !== residenceTier + 1 || !spend(item.cost)) return false;
+    setResidenceTier(index);
+    addActivityItem(setActivity, `${item.name} became your new residence tier.`, 'asset');
+    return true;
+  };
+
+  const upgradeResidenceSecurity = () => {
+    if (!residence || residenceSecurity >= 25 || !spend(residenceSecurityCost)) return false;
+    setResidenceSecurity((value) => value + 1);
+    addActivityItem(setActivity, `Residence security upgraded to level ${residenceSecurity + 1}.`, 'upgrade');
+    return true;
+  };
+
+  const upgradeResidenceStaff = () => {
+    if (!residence || residenceStaff >= 25 || !spend(residenceStaffCost)) return false;
+    setResidenceStaff((value) => value + 1);
+    addActivityItem(setActivity, `Residence staff upgraded to level ${residenceStaff + 1}.`, 'upgrade');
+    return true;
+  };
+
+  const buyResidenceImprovement = (id) => {
+    const item = residenceImprovementData.find((improvement) => improvement.id === id);
+    if (!item || residenceTier < item.minTier || residenceImprovementsOwned.includes(id) || !spend(item.cost)) return false;
+    setResidenceImprovementsOwned((items) => [...items, id]);
+    addActivityItem(setActivity, `${item.name} added to your residence.`, 'asset');
+    return true;
   };
 
   const tradeStock = (id, quantity, direction) => {
@@ -570,7 +853,7 @@ export function GameProvider({ children }) {
 
   const getBusinessDetails = (id) => {
     const owned = businesses.find((business) => business.id === id);
-    const base = businessCatalogData.find((business) => business.id === id);
+    const base = businessCatalogData.find((business) => business.id === (owned?.typeId || owned?.id));
     if (!owned || !base) return null;
     const profit = owned.incomePerSec;
     const revenue = profit / Math.max(0.08, base.margin);
@@ -598,6 +881,10 @@ export function GameProvider({ children }) {
       dividendIncomePerSec,
       businesses,
       businessCatalog,
+      acquisitionTargets,
+      acquisitionHistory,
+      mergerGroups,
+      mergerCount,
       properties,
       propertyCatalog,
       assets,
@@ -613,6 +900,15 @@ export function GameProvider({ children }) {
       propertyValue,
       assetValue,
       prestige,
+      residence,
+      residenceTier,
+      residenceCatalog,
+      residenceImprovements,
+      residenceSecurity,
+      residenceStaff,
+      residenceSecurityCost,
+      residenceStaffCost,
+      residenceValue,
       netWorth,
       taxDue,
       offlineEarnings,
@@ -632,8 +928,14 @@ export function GameProvider({ children }) {
       expandBusiness,
       upgradeBusiness,
       hireManager,
+      acquireTarget,
+      mergeBusinesses,
       buyProperty,
       buyAsset,
+      buyResidenceTier,
+      upgradeResidenceSecurity,
+      upgradeResidenceStaff,
+      buyResidenceImprovement,
       buyStock,
       sellStock,
       buyCrypto,

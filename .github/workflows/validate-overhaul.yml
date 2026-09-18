@@ -1,0 +1,27 @@
+name: Validate Minted Overhaul
+
+on:
+  push:
+    branches:
+      - minted-overhaul
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package.json
+      - name: Install dependencies
+        run: npm install
+      - name: Bundle iOS JavaScript
+        env:
+          CI: 1
+        run: npx expo export --platform ios --output-dir dist
+
+# validate current overhaul head
