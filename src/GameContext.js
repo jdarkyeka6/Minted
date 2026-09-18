@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const GameContext = createContext(null);
@@ -250,6 +250,7 @@ export function GameProvider({ children }) {
   const [dailyStreak, setDailyStreak] = useState(0);
   const [lastDailyClaim, setLastDailyClaim] = useState(null);
   const [marketHeadline, setMarketHeadline] = useState('Markets are open. Prices move every few seconds.');
+  const saveSnapshotRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -502,46 +503,7 @@ export function GameProvider({ children }) {
     return () => clearInterval(id);
   }, [loaded]);
 
-  useEffect(() => {
-    if (!loaded) return undefined;
-    const id = setInterval(async () => {
-      const now = Date.now();
-      setLastSavedAt(now);
-      try {
-        await AsyncStorage.setItem(SAVE_KEY, JSON.stringify({
-          balance,
-          totalEarned,
-          totalClicks,
-          clickTier,
-          businesses,
-          acquiredTargetIds,
-          acquisitionHistory,
-          mergerCount,
-          properties,
-          assets,
-          residenceTier,
-          residenceSecurity,
-          residenceStaff,
-          residenceImprovementsOwned,
-          stocks,
-          crypto,
-          jobs,
-          activeJobId,
-          lastWorkedAt,
-          taxAccounts,
-          activity,
-          claimedAchievements,
-          dailyStreak,
-          lastDailyClaim,
-          lastSavedAt: now,
-        }));
-      } catch (error) {
-        console.warn('Minted save could not be written', error);
-      }
-    }, 2500);
-    return () => clearInterval(id);
-  }, [
-    loaded,
+  saveSnapshotRef.current = {
     balance,
     totalEarned,
     totalClicks,
@@ -566,7 +528,22 @@ export function GameProvider({ children }) {
     claimedAchievements,
     dailyStreak,
     lastDailyClaim,
-  ]);
+  };
+
+  useEffect(() => {
+    if (!loaded) return undefined;
+    const id = setInterval(async () => {
+      const now = Date.now();
+      const snapshot = { ...(saveSnapshotRef.current || {}), lastSavedAt: now };
+      try {
+        await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
+        setLastSavedAt(now);
+      } catch (error) {
+        console.warn('Minted save could not be written', error);
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, [loaded]);
 
   const stockValue = useMemo(() => stocks.reduce((sum, stock) => sum + stock.shares * stock.price, 0), [stocks]);
   const cryptoValue = useMemo(() => crypto.reduce((sum, coin) => sum + coin.units * coin.price, 0), [crypto]);
